@@ -5,7 +5,6 @@ import sys
 from decimal import Decimal
 from time import perf_counter
 from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Type, Union
-import pdb
 from rdflib import BNode, Literal, URIRef
 import inspect
 from .consts import (
@@ -436,9 +435,7 @@ class Shape(object):
         for frame_info in stack:
             if frame_info.function == "shacl_validate":
                 mydebug = True
-                break  # If we encounter any other function, return False
-#        if mydebug:
-#            print("mydebug is true")
+                break  # If we encounter any other function, mydebug = False
         if self.deactivated:
             if self.sg.debug:
                 self.logger.debug(f"Skipping shape because it is deactivated: {str(self)}")
@@ -461,18 +458,12 @@ class Shape(object):
 
         if mydebug:
             print(f"Running evaluation of Shape {str(self)} on focus: {focus}")
-        if mydebug and str(self) == "<NodeShape urn:my_site_constraints/vav>":
-            pass
-            #pdb.set_trace()
         if _evaluation_path is None:
             _evaluation_path = []
         elif len(_evaluation_path) >= 30:
             # 27 is the depth required to successfully do the meta-shacl test on shacl.ttl
             path_str = " -> ".join((str(e) for e in _evaluation_path))
             raise ReportableRuntimeError("Evaluation path too deep!\n{}".format(path_str))
-        if mydebug:
-            path_str = " -> ".join((str(e) for e in _evaluation_path))
-            #print(f"evaluation path {path_str}")
         # Lazy import here to avoid an import loop
         CONSTRAINT_PARAMETERS, PARAMETER_MAP = getattr(module, 'CONSTRAINT_PARAMS', (None, None))
         if not CONSTRAINT_PARAMETERS or not PARAMETER_MAP:
@@ -524,8 +515,6 @@ class Shape(object):
             if constraint_component in done_constraints:
                 continue
             try:
-                # if self.sg.debug:
-                #     self.logger.debug(f"Constructing Constraint Component: {repr(constraint_component)}")
                 c = constraint_component(self)
             except ConstraintLoadWarning as w:
                 self.logger.warning(repr(w))
@@ -535,18 +524,7 @@ class Shape(object):
                 raise e
             _e_p_copy = _evaluation_path[:]
             _e_p_copy.append(c)
-            if mydebug and str(self) == "<NodeShape urn:my_site_constraints/vav>":
-                pass
-                #pdb.set_trace()
             _is_conform, _reports = c.evaluate(target_graph, focus_value_nodes, _e_p_copy)
-            #if mydebug:
-            #    if _is_conform:
-            #        print(f"DataGraph conforms to constraint {c}.")
-            #    else:
-            #        print(f"Focus nodes do _not_ conform to constraint {c}.")
-            #        if lh_shape or (not rh_shape):
-            #            for v_str, v_node, v_parts in _reports:
-            #                print(f"{v_str}")
 
             if _is_conform or allow_conform:
                 ...
