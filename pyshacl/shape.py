@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+from buildingmotif import get_building_motif
 import logging
 import sys
 from decimal import Decimal
@@ -623,13 +624,14 @@ class Shape(object):
         return None  # If no non-blank parent is found
 
     def get_shacl_syntax(self):
+        ns_mgr = get_building_motif().template_ns_mgr
         g = self.sg.graph
         shape_syntax = []
 
         def format_node(node):
             """Format the RDF node for display"""
             if isinstance(node, URIRef):
-                return f"<{str(node)}>"
+                return f"{str(ns_mgr.normalizeUri(node))}"
             elif isinstance(node, BNode):
                 return f"_:bnode"
                 assert False # I don't think this should be reached

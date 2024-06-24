@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Dict, Iterator, List, Optional, Set, Tuple, Un
 import rdflib
 from rdflib import BNode, Literal, URIRef
 from rdflib.util import from_n3
-from .trace_mgr import TraceMgr
+from .trace_mgr import TraceMgr, ShapeContainer
 from .consts import (
     RDF_object,
     RDF_predicate,
@@ -227,13 +227,10 @@ class Validator(object):
         for shape in shapes:
             if shape._my_name is None:
                 continue
-            print(shape._my_name)
-            print("=========================shacl syntax:====================")
-            print(shape.get_shacl_syntax())
-            print("==========================================================")
+            sc = ShapeContainer(shape._my_name, shape.get_shacl_syntax())
             for focus_signature, trace in shape._traces.items():
-                TraceMgr().add_trace(shape._my_name, trace)
-             
+                sc.add_trace(trace)
+            TraceMgr().add_shape_container(shape._my_name, sc)
     def run(self):
         if self.target_graph is not None:
             the_target_graph = self.target_graph
