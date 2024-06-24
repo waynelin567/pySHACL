@@ -478,11 +478,6 @@ class Shape(object):
                 subj, depth = self.find_closest_non_blank_parent()
                 self._my_name = f"{str(self)} closest non blank parent {subj} is {depth} levels up" 
                 print(f"closest non blank parent {subj} is {depth} levels up")
-                #triples = self.find_triples_w_bnode()
-                #for triple in triples:
-                #    print("\t", triple)
-                #focus_value_nodes = self.value_nodes(target_graph, focus)
-                #print(f"focus value nodes: {focus_value_nodes}")
             else:
                 self._my_name = {str(self)}
                 print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
