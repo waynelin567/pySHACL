@@ -228,6 +228,9 @@ class Validator(object):
             if shape._my_name is None:
                 continue
             print(shape._my_name)
+            print("=========================shacl syntax:====================")
+            print(shape.get_shacl_syntax())
+            print("==========================================================")
             for focus_signature, trace in shape._traces.items():
                 TraceMgr().add_trace(shape._my_name, trace)
              

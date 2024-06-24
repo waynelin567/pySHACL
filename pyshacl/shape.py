@@ -20,6 +20,7 @@ from .consts import (
     SH_message,
     SH_name,
     SH_order,
+    SH_path,
     SH_property,
     SH_resultSeverity,
     SH_select,
@@ -620,6 +621,40 @@ class Shape(object):
                     stack.append((subj, current, depth+1))
         assert False  # We should always find a non-blank parent
         return None  # If no non-blank parent is found
+
+    def get_shacl_syntax(self):
+        g = self.sg.graph
+        shape_syntax = []
+
+        def format_node(node):
+            """Format the RDF node for display"""
+            if isinstance(node, URIRef):
+                return f"<{str(node)}>"
+            elif isinstance(node, BNode):
+                return f"_:bnode"
+                assert False # I don't think this should be reached
+            elif isinstance(node, Literal):
+                return f'{str(node)}'
+            else:
+                return str(node)
+        def add_properties(node, indent=0):
+            for p, o in g.predicate_objects(node):
+                indent_str = " " * indent
+                if isinstance(o, BNode):
+                    shape_syntax.append(f"{indent_str}{format_node(p)} [")
+                    add_properties(o, indent + 2)
+                    shape_syntax.append(f"{indent_str}] ;")
+                else:
+                    shape_syntax.append(f"{indent_str}{format_node(p)} {format_node(o)} ;")
+        # Add the shape type
+        shape_type = g.value(self.node, RDF_type)
+        if shape_type:
+            shape_syntax.append(f"{format_node(self.node)} a {format_node(shape_type)} ;")
+
+        # Add properties and constraints
+        add_properties(self.node, 2)
+
+        return "\n".join(shape_syntax)
 class Trace():
     def __init__(self, focus):
         self.focus_ls = focus
