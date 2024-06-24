@@ -8,9 +8,10 @@ class ShapeContainer:
     def add_trace(self, trace:Trace):
         self._traces.append(trace)
     def print(self):
+        print(self.shacl_syntax)
         for trace in self._traces:
             trace.print()
-        print(self.shacl_syntax)
+
 class TraceMgr:
     _instance = None
     _shapes:dict[str, ShapeContainer] = {}
@@ -22,5 +23,6 @@ class TraceMgr:
         cls._shapes[shape_name] = sc 
     def print(cls):
         for shape_name, sc in cls._shapes.items():
-            print(f"Shape: {shape_name}")
+            print("="*25,f"Shape: {shape_name}", "="*25)
             sc.print()
+            print("="*100)

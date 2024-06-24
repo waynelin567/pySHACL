@@ -485,13 +485,13 @@ class Shape(object):
                 self._traces[focus_signature] = Trace(focus)
 
             if isinstance(self.node, BNode):
-                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
+#                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
                 subj, depth = self.find_closest_non_blank_parent()
                 self._my_name = f"{str(self)} closest non blank parent {subj} is {depth} levels up" 
-                print(f"closest non blank parent {subj} is {depth} levels up")
+#                print(f"closest non blank parent {subj} is {depth} levels up")
             else:
                 self._my_name = str(self)
-                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
+#                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
         if _evaluation_path is None:
             _evaluation_path = []
         elif len(_evaluation_path) >= 30:
@@ -591,15 +591,15 @@ class Shape(object):
             run_count += 1
             if mydebug:
                 self.record_trace(focus, c, non_conformant)
-        if mydebug:
-            print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
+#        if mydebug:
+#            print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
         return (not non_conformant), reports
 
     def record_trace(self, focus, c, non_conformant):
         focus_signature = self.get_focus_signature(focus)
         assert focus_signature in self._traces 
         self._traces[focus_signature].add_component(c, not non_conformant)
-        print(f"\t\tFocus:{focus}", c, "Passes" if not non_conformant else "Fails")
+#        print(f"\t\tFocus:{focus}", c, "Passes" if not non_conformant else "Fails")
 
     def find_closest_non_blank_parent(self) -> URIRef:
         visited = set()
