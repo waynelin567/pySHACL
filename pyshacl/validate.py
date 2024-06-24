@@ -221,6 +221,16 @@ class Validator(object):
             return inoculate(to_graph, self.ont_graph)
         return inoculate_dataset(self.data_graph, self.ont_graph, self.data_graph if self.inplace else None)
 
+    def get_trace(self):
+        print("=======================Getting Traces=======================")
+        shapes = self.shacl_graph.shapes
+        for shape in shapes:
+            if shape._my_name is None:
+                continue
+            print(shape._my_name)
+            for uri, trace in shape._traces.items():
+                trace.print()
+                
     def run(self):
         if self.target_graph is not None:
             the_target_graph = self.target_graph
@@ -492,6 +502,132 @@ def validate(
             do_serialize_report_graph = 'turtle'
         report_graph = report_graph.serialize(None, encoding='utf-8', format=do_serialize_report_graph)
     return conforms, report_graph, report_text
+
+def validate_with_trace(
+    data_graph: Union[GraphLike, str, bytes],
+    *args,
+    shacl_graph: Optional[Union[GraphLike, str, bytes]] = None,
+    ont_graph: Optional[Union[GraphLike, str, bytes]] = None,
+    advanced: Optional[bool] = False,
+    inference: Optional[str] = None,
+    inplace: Optional[bool] = False,
+    abort_on_first: Optional[bool] = False,
+    allow_infos: Optional[bool] = False,
+    allow_warnings: Optional[bool] = False,
+    **kwargs,
+):
+    """
+    :param data_graph: rdflib.Graph or file path or web url of the data to validate
+    :type data_graph: rdflib.Graph | str | bytes
+    :param args:
+    :type args: list
+    :param shacl_graph: rdflib.Graph or file path or web url of the SHACL Shapes graph to use to
+    validate the data graph
+    :type shacl_graph: rdflib.Graph | str | bytes
+    :param ont_graph: rdflib.Graph or file path or web url of an extra ontology document to mix into the data graph
+    :type ont_graph: rdflib.Graph | str | bytes
+    :param advanced: Enable advanced SHACL features, default=False
+    :type advanced: bool | None
+    :param inference: One of "rdfs", "owlrl", "both", "none", or None
+    :type inference: str | None
+    :param inplace: If this is enabled, do not clone the datagraph, manipulate it inplace
+    :type inplace: bool
+    :param abort_on_first: Stop evaluating constraints after first violation is found
+    :type abort_on_first: bool | None
+    :param allow_infos: Shapes marked with severity of sh:Info will not cause result to be invalid.
+    :type allow_infos: bool | None
+    :param allow_warnings: Shapes marked with severity of sh:Warning or sh:Info will not cause result to be invalid.
+    :type allow_warnings: bool | None
+    :param kwargs:
+    :return:
+    """
+
+    do_debug = kwargs.get('debug', False)
+    if do_debug:
+        log_handler.setLevel(logging.DEBUG)
+        log.setLevel(logging.DEBUG)
+    apply_patches()
+    assign_baked_in()
+    do_check_dash_result = kwargs.pop('check_dash_result', False)  # type: bool
+    do_check_sht_result = kwargs.pop('check_sht_result', False)  # type: bool
+    if kwargs.get('meta_shacl', False):
+        to_meta_val = shacl_graph or data_graph
+        conforms, v_r, v_t = meta_validate(to_meta_val, inference=inference, **kwargs)
+        if not conforms:
+            msg = f"SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file.\n{v_t}"
+            log.error(msg)
+            raise ReportableRuntimeError(msg)
+    do_owl_imports = kwargs.pop('do_owl_imports', False)
+    data_graph_format = kwargs.pop('data_graph_format', None)
+    # force no owl imports on data_graph
+    loaded_dg = load_from_source(
+        data_graph, rdf_format=data_graph_format, multigraph=True, do_owl_imports=False, logger=log
+    )
+    ont_graph_format = kwargs.pop('ont_graph_format', None)
+    if ont_graph is not None:
+        loaded_og = load_from_source(
+            ont_graph, rdf_format=ont_graph_format, multigraph=True, do_owl_imports=do_owl_imports, logger=log
+        )
+    else:
+        loaded_og = None
+    shacl_graph_format = kwargs.pop('shacl_graph_format', None)
+    if shacl_graph is not None:
+        rdflib_bool_patch()
+        loaded_sg = load_from_source(
+            shacl_graph, rdf_format=shacl_graph_format, multigraph=True, do_owl_imports=do_owl_imports, logger=log
+        )
+        rdflib_bool_unpatch()
+    else:
+        loaded_sg = None
+    use_js = kwargs.pop('js', None)
+    iterate_rules = kwargs.pop('iterate_rules', False)
+    if "abort_on_error" in kwargs:
+        log.warning("Usage of abort_on_error is deprecated. Use abort_on_first instead.")
+        ae = kwargs.pop("abort_on_error")
+        abort_on_first = bool(abort_on_first) or bool(ae)
+    validator = None
+    try:
+        validator = Validator(
+            loaded_dg,
+            shacl_graph=loaded_sg,
+            ont_graph=loaded_og,
+            options={
+                'debug': do_debug or False,
+                'inference': inference,
+                'inplace': inplace,
+                'abort_on_first': abort_on_first,
+                'allow_infos': allow_infos,
+                'allow_warnings': allow_warnings,
+                'advanced': advanced,
+                'iterate_rules': iterate_rules,
+                'use_js': use_js,
+                'logger': log,
+            },
+        )
+        conforms, report_graph, report_text = validator.run()
+    except ValidationFailure as e:
+        conforms = False
+        report_graph = e
+        report_text = "Validation Failure - {}".format(e.message)
+    if do_check_dash_result and validator is not None:
+        passes = check_dash_result(validator, report_graph, loaded_sg or loaded_dg)
+        return passes, report_graph, report_text
+    if do_check_sht_result:
+        (sht_graph, sht_result_node) = kwargs.pop('sht_validate', (False, None))
+        if not sht_result_node:
+            raise RuntimeError("Cannot check SHT result if SHT graph and result node are not given.")
+        passes = check_sht_result(report_graph, sht_graph or loaded_sg or loaded_dg, sht_result_node)
+        return passes, report_graph, report_text
+    do_serialize_report_graph = kwargs.pop('serialize_report_graph', False)
+    if do_serialize_report_graph and isinstance(report_graph, rdflib.Graph):
+        if not (isinstance(do_serialize_report_graph, str)):
+            do_serialize_report_graph = 'turtle'
+        report_graph = report_graph.serialize(None, encoding='utf-8', format=do_serialize_report_graph)
+    ######This is the only difference with validate()
+    validator.get_trace()
+    ##################################################
+    return conforms, report_graph, report_text
+
 
 
 def clean_validation_reports(actual_graph, actual_report, expected_graph, expected_report):

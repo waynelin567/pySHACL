@@ -59,6 +59,8 @@ class Shape(object):
         '_messages',
         '_names',
         '_descriptions',
+        '_traces',
+        '_my_name'
     )
 
     def __init__(
@@ -83,7 +85,8 @@ class Shape(object):
         self._p = p
         self._path = path
         self._advanced = False
-
+        self._traces:dict[URIRef, Trace] = {}
+        self._my_name:str = None
         deactivated_vals = set(self.objects(SH_deactivated))
         if len(deactivated_vals) > 1:
             # TODO:coverage: we don't have any tests for invalid shapes
@@ -162,6 +165,16 @@ class Shape(object):
             return
         for n in self._names:
             yield n
+
+    def find_triples_w_bnode(self):
+        triples = []
+        if self.is_property_shape:
+            for s, p, o in self.sg.graph.triples((None, None, self.node)):
+                triples.append((s, p, o))
+        else:
+            for s, p, o in self.sg.graph.triples((self.node, None, None)):
+                triples.append((s, p, o))
+        return triples
 
     def __str__(self):
         try:
@@ -457,7 +470,22 @@ class Shape(object):
                 return True, []
 
         if mydebug:
-            print(f"Running evaluation of Shape {str(self)} on focus: {focus}")
+            for f in focus:
+                if f not in self._traces:
+                    self._traces[f] = Trace(f)
+            if isinstance(self.node, BNode):
+                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
+                subj, depth = self.find_closest_non_blank_parent()
+                self._my_name = f"{str(self)} closest non blank parent {subj} is {depth} levels up" 
+                print(f"closest non blank parent {subj} is {depth} levels up")
+                #triples = self.find_triples_w_bnode()
+                #for triple in triples:
+                #    print("\t", triple)
+                #focus_value_nodes = self.value_nodes(target_graph, focus)
+                #print(f"focus value nodes: {focus_value_nodes}")
+            else:
+                self._my_name = {str(self)}
+                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
         if _evaluation_path is None:
             _evaluation_path = []
         elif len(_evaluation_path) >= 30:
@@ -542,6 +570,8 @@ class Shape(object):
             done_constraints.add(constraint_component)
             if non_conformant and abort_on_first:
                 break
+            if mydebug:
+                self.record_trace(focus, c, non_conformant)
         applicable_custom_constraints = self.find_custom_constraints()
         for a in applicable_custom_constraints:
             if non_conformant and abort_on_first:
@@ -553,6 +583,61 @@ class Shape(object):
             non_conformant = non_conformant or (not _is_conform)
             reports.extend(_r)
             run_count += 1
+            if mydebug:
+                self.record_trace(focus, c, non_conformant)
         if mydebug:
             print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
         return (not non_conformant), reports
+
+    def record_trace(self, focus, c, non_conformant):
+        if len(focus) > 1:
+            print("\t\tMore than one Focus!!!!:", focus)
+            assert False
+        else:
+            only_focus = list(focus)[0]
+            assert only_focus in self._traces 
+            self._traces[only_focus].add_component(c, not non_conformant)
+        print(f"\t\tFocus:{focus}", c, "Passes" if not non_conformant else "Fails")
+
+    def find_closest_non_blank_parent(self) -> URIRef:
+        visited = set()
+
+        # Stack for DFS (Depth First Search)
+        stack = [(self.node, None, 0)]  # (current node, parent node)
+        while stack:
+            current, parent, depth = stack.pop()
+
+            # If current node is a blank node and not visited
+            if isinstance(current, BNode) and current not in visited:
+                visited.add(current)
+
+                # Find all subjects that have the current blank node as object
+                for subj in self.sg.graph.subjects(object=current):
+                    # If subject is not a blank node, we found our parent
+                    if not isinstance(subj, BNode):
+                        return subj, depth + 1
+                    # Otherwise, add it to the stack to continue search
+                    stack.append((subj, current, depth+1))
+        assert False  # We should always find a non-blank parent
+        return None  # If no non-blank parent is found
+class Trace():
+    def __init__(self, focus):
+        self.focus:URIRef = focus
+        self.components = {}
+    @property
+    def isSAT(self):
+        for c, sat in self.components.items():
+            if not sat:
+                return False
+        return True 
+    def add_component(self, component, sat):
+        self.components[component] = sat
+    def print(self):
+        print(f"Focus: {self.focus}")
+        print(f"Is SAT: {self.isSAT}")
+        for c, sat in self.components.items():
+            print(f"\t{c} is {sat}")
+class ConstraintComponent():
+    def __init__(self, component, sat:bool):
+        self.component = component
+        self.isSAT = sat
