@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Dict, Iterator, List, Optional, Set, Tuple, Un
 import rdflib
 from rdflib import BNode, Literal, URIRef
 from rdflib.util import from_n3
-
+from .trace_mgr import TraceMgr
 from .consts import (
     RDF_object,
     RDF_predicate,
@@ -228,9 +228,9 @@ class Validator(object):
             if shape._my_name is None:
                 continue
             print(shape._my_name)
-            for uri, trace in shape._traces.items():
-                trace.print()
-                
+            for focus_signature, trace in shape._traces.items():
+                TraceMgr().add_trace(shape._my_name, trace)
+             
     def run(self):
         if self.target_graph is not None:
             the_target_graph = self.target_graph

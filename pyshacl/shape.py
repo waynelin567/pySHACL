@@ -85,7 +85,7 @@ class Shape(object):
         self._p = p
         self._path = path
         self._advanced = False
-        self._traces:dict[URIRef, Trace] = {}
+        self._traces:dict[str, Trace] = {}
         self._my_name:str = None
         deactivated_vals = set(self.objects(SH_deactivated))
         if len(deactivated_vals) > 1:
@@ -426,7 +426,15 @@ class Shape(object):
             if found_all_mandatory:
                 applicable_custom_constraints.add(c)
         return applicable_custom_constraints
-
+    def get_focus_signature(self, focus):
+        assert len(focus) > 0
+        ret = ""
+        for i, f in enumerate(list(focus)):
+            if i != len(focus) - 1:
+                ret += f"{str(f)}_"
+            else:
+                ret += str(f) 
+        return ret
     def validate(
         self,
         target_graph: GraphLike,
@@ -470,16 +478,17 @@ class Shape(object):
                 return True, []
 
         if mydebug:
-            for f in focus:
-                if f not in self._traces:
-                    self._traces[f] = Trace(f)
+            focus_signature = self.get_focus_signature(focus)
+            if focus_signature not in self._traces:
+                self._traces[focus_signature] = Trace(focus)
+
             if isinstance(self.node, BNode):
                 print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
                 subj, depth = self.find_closest_non_blank_parent()
                 self._my_name = f"{str(self)} closest non blank parent {subj} is {depth} levels up" 
                 print(f"closest non blank parent {subj} is {depth} levels up")
             else:
-                self._my_name = {str(self)}
+                self._my_name = str(self)
                 print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
         if _evaluation_path is None:
             _evaluation_path = []
@@ -585,13 +594,9 @@ class Shape(object):
         return (not non_conformant), reports
 
     def record_trace(self, focus, c, non_conformant):
-        if len(focus) > 1:
-            print("\t\tMore than one Focus!!!!:", focus)
-            assert False
-        else:
-            only_focus = list(focus)[0]
-            assert only_focus in self._traces 
-            self._traces[only_focus].add_component(c, not non_conformant)
+        focus_signature = self.get_focus_signature(focus)
+        assert focus_signature in self._traces 
+        self._traces[focus_signature].add_component(c, not non_conformant)
         print(f"\t\tFocus:{focus}", c, "Passes" if not non_conformant else "Fails")
 
     def find_closest_non_blank_parent(self) -> URIRef:
@@ -617,7 +622,7 @@ class Shape(object):
         return None  # If no non-blank parent is found
 class Trace():
     def __init__(self, focus):
-        self.focus:URIRef = focus
+        self.focus_ls = focus
         self.components = {}
     @property
     def isSAT(self):
@@ -628,7 +633,7 @@ class Trace():
     def add_component(self, component, sat):
         self.components[component] = sat
     def print(self):
-        print(f"Focus: {self.focus}")
+        print(f"Focus: {self.focus_ls}")
         print(f"Is SAT: {self.isSAT}")
         for c, sat in self.components.items():
             print(f"\t{c} is {sat}")
