@@ -633,8 +633,8 @@ class Shape(object):
             if isinstance(node, URIRef):
                 return f"{str(ns_mgr.normalizeUri(node))}"
             elif isinstance(node, BNode):
-                return f"_:bnode"
                 assert False # I don't think this should be reached
+                return f"_:bnode"
             elif isinstance(node, Literal):
                 return f'{str(node)}'
             else:
@@ -661,6 +661,7 @@ class Trace():
     def __init__(self, focus):
         self.focus_ls = focus
         self.components = {}
+        self.focus_neighbors = {}
     @property
     def isSAT(self):
         for c, sat in self.components.items():
@@ -669,11 +670,75 @@ class Trace():
         return True 
     def add_component(self, component, sat):
         self.components[component] = sat
+
+    def get_focus_neighbors(self, graph:GraphLike):
+        for f in self.focus_ls:
+            self._get_neighbors(graph, f)
+
+    def _get_neighbors(self, graph: GraphLike, f: URIRef):
+        visited = set()
+        all_triples = set()
+
+        def recurse(node):
+            if node in visited:
+                return
+            visited.add(node)
+            
+            # Find all triples where node is the subject
+            for p, o in graph.predicate_objects(subject=node):
+                triple = (node, p, o)
+                if triple not in all_triples:
+                    all_triples.add(triple)
+                    if isinstance(o, (URIRef, BNode)):
+                        recurse(o)
+
+        recurse(f)
+        self.focus_neighbors[f] = all_triples 
+
+    def pretty_print_triples(self, triples):
+        def format_node(node):
+            if isinstance(node, URIRef):
+                return get_building_motif().template_ns_mgr.normalizeUri(node)
+            elif isinstance(node, BNode):
+                return f"_:bnode"
+            else:
+                return f'"{str(node)}"^^<{str(node.datatype)}>' if node.datatype else f'"{str(node)}"'
+        # Organize triples by subject and predicate
+        organized_triples = {}
+        subject_type = {}
+        for s, p, o in triples:
+            s_str = format_node(s)
+            p_str = format_node(p)
+            o_str = format_node(o)
+
+            if p_str == "rdf:type":
+                if s_str not in subject_type:
+                    subject_type[s_str] = []
+                subject_type[s_str].append(o_str)
+                continue
+
+            if s_str not in organized_triples:
+                organized_triples[s_str] = {}
+            if p_str not in organized_triples[s_str]:
+                organized_triples[s_str][p_str] = []
+            organized_triples[s_str][p_str].append(o_str)
+
+        for s_str, types in subject_type.items():
+            print(f"{s_str} a {', '.join(types)}", end=" ")
+            if s_str in organized_triples:
+                print(" ;")
+                for p_str, objects in organized_triples[s_str].items():
+                    print(f"  {p_str} {', '.join(objects)}", end=" ;\n")
+            print(".")
+
     def print(self):
         print(f"Focus: {self.focus_ls}")
         print(f"Is SAT: {self.isSAT}")
         for c, sat in self.components.items():
             print(f"\t{c} is {sat}")
+        for f, connections in self.focus_neighbors.items():
+            triples = self.focus_neighbors[f]
+            self.pretty_print_triples(triples)
 class ConstraintComponent():
     def __init__(self, component, sat:bool):
         self.component = component

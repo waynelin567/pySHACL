@@ -231,6 +231,7 @@ class Validator(object):
             for focus_signature, trace in shape._traces.items():
                 sc.add_trace(trace)
             TraceMgr().add_shape_container(shape._my_name, sc)
+            TraceMgr().get_focus_neighbors(self.data_graph)
     def run(self):
         if self.target_graph is not None:
             the_target_graph = self.target_graph
