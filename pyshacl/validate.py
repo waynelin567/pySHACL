@@ -227,12 +227,8 @@ class Validator(object):
         for shape in shapes:
             if shape._my_name is None:
                 continue
-            shape_children = shape.get_children()
-            sc = ShapeContainer(shape._my_name, shape.get_shacl_syntax())
-            sc.set_children(shape_children)
-            for focus_signature, trace in shape._traces.items():
-                sc.add_trace(trace)
-            TraceMgr().add_shape_container(shape._my_name, sc)
+            sc = ShapeContainer(shape)
+            TraceMgr().add_shape_container(sc.shape_uri_name, sc)
             TraceMgr().get_focus_neighbors(self.data_graph)
     def run(self):
         if self.target_graph is not None:

@@ -1,20 +1,25 @@
-from .shape import Trace
+from .shape import Trace, Shape
 from rdflib import Graph, URIRef
 class ShapeContainer:
-    def __init__(self, shape_name:str, shacl_syntax:str):
-        self._shape_name = shape_name
+    def __init__(self, shape:Shape):
+        self._shape = shape
+        self._shape_name = shape._my_name
+        self.shacl_syntax = shape.get_shacl_syntax() 
+        self._children:list[str] = shape.get_children()
         self._traces:list[Trace] = []
-        self.shacl_syntax = shacl_syntax
-        self._shape_uri_name = None
-        self._children:list[str]= []
-    def set_children(self, children):
-        self._children = children
-    def set_shape_uri_name(self, shape_uri_name:str):
-        self._shape_uri_name = shape_uri_name
-    def add_trace(self, trace:Trace):
-        self._traces.append(trace)
+        for focus_signature, trace in shape._traces.items():
+            self._traces.append(trace)
+
+    @property
+    def shape_uri_name(self):
+        # for some reason this shape_uri_name is hard to get from shape.py
+        # it looks something like nc89b5fc355c0437d99ebb586ed03bbdbb1
+        # or urn:my_site_constraints/return-air-temperature2
+        shape_uri_name = self._shape_name.split('>')[0].strip('<>').split("Shape")[1].strip()
+        return shape_uri_name
+
     def print(self):
-        print(f"shape name: {self._shape_uri_name}")
+        print(f"shape name: {self.shape_uri_name}")
         print("shacl syntax:")
         print(self.shacl_syntax)
         print("children:")
@@ -31,12 +36,7 @@ class TraceMgr:
         if cls._instance is None:
             cls._instance = super(TraceMgr, cls).__new__(cls)
         return cls._instance
-    def add_shape_container(cls, shape_name:str, sc:ShapeContainer):
-        # for some reason this shape_uri_name is hard to get from shape.py
-        # it looks something like nc89b5fc355c0437d99ebb586ed03bbdbb1
-        # or urn:my_site_constraints/return-air-temperature2
-        shape_uri_name = shape_name.split('>')[0].strip('<>').split("Shape")[1].strip()
-        sc.set_shape_uri_name(shape_uri_name)
+    def add_shape_container(cls, shape_uri_name:str, sc:ShapeContainer):
         cls._shapes[shape_uri_name] = sc 
     def print(cls):
         for shape_name, sc in cls._shapes.items():
