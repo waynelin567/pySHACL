@@ -646,12 +646,13 @@ class Shape(object):
                     shape_syntax.append(f"{indent_str}{format_node(p)} [")
                     add_properties(o, indent + 2)
                     shape_syntax.append(f"{indent_str}] ;")
-                else:
+                elif p != RDF_type:
                     shape_syntax.append(f"{indent_str}{format_node(p)} {format_node(o)} ;")
         # Add the shape type
-        shape_type = g.value(self.node, RDF_type)
-        if shape_type:
-            shape_syntax.append(f"{format_node(self.node)} a {format_node(shape_type)} ;")
+        rdf_types = list(g.objects(self.node, RDF_type))
+        if rdf_types:
+            rdf_types = [format_node(t) for t in rdf_types]
+            shape_syntax.append(f"{format_node(self.node)} a {', '.join(rdf_types)} ;")
 
         # Add properties and constraints
         add_properties(self.node, 2)
