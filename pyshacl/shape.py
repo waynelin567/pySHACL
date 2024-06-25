@@ -8,6 +8,8 @@ from time import perf_counter
 from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Type, Union
 from rdflib import BNode, Literal, URIRef
 import inspect
+from rdflib.namespace import RDF
+from .consts import SH
 from .consts import (
     RDF_type,
     RDFS_Class,
@@ -21,7 +23,7 @@ from .consts import (
     SH_message,
     SH_name,
     SH_order,
-    SH_path,
+    SH_node,
     SH_property,
     SH_resultSeverity,
     SH_select,
@@ -658,6 +660,33 @@ class Shape(object):
         add_properties(self.node, 2)
 
         return "\n".join(shape_syntax)
+    def get_children(self):
+        child_shapes = set()
+        SH_not = SH["not"]
+        SH_and = SH["and"]
+        SH_or = SH["or"]
+        SH_xone = SH.xone
+        def add_children_from_rdf_list(list_node):
+            while list_node and list_node != RDF.nil:
+                first = self.sg.graph.value(list_node, RDF.first)
+                if first:
+                    child_shapes.add(first)
+                list_node = self.sg.graph.value(list_node, RDF.rest)
+
+        ## TODO: do we need qualifiedvalue shapes?
+        nested_properties = [SH_property, SH_node]
+        logical_properties = [SH_and, SH_or, SH_not, SH_xone]
+        for prop in nested_properties:
+            for obj in self.objects(prop):
+                #if isinstance(obj, BNode) or isinstance(obj, URIRef):
+                    child_shapes.add(obj)
+        for prop in logical_properties:
+            for obj in self.objects(prop):
+                #if isinstance(obj, BNode) or isinstance(obj, URIRef):
+                    add_children_from_rdf_list(obj)
+
+        return list(child_shapes)
+
 class Trace():
     def __init__(self, focus):
         self.focus_ls = focus

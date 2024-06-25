@@ -6,12 +6,18 @@ class ShapeContainer:
         self._traces:list[Trace] = []
         self.shacl_syntax = shacl_syntax
         self._shape_uri_name = None
+        self._children = []
+    def add_children(self, children):
+        self._children = children
     def set_shape_uri_name(self, shape_uri_name:str):
         self._shape_uri_name = shape_uri_name
     def add_trace(self, trace:Trace):
         self._traces.append(trace)
     def print(self):
+        print("shacl syntax:")
         print(self.shacl_syntax)
+        print("children:")
+        print(self._children)
         for trace in self._traces:
             trace.print()
     def get_focus_neighbors(self, graph:Graph):
