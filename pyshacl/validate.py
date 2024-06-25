@@ -229,7 +229,7 @@ class Validator(object):
                 continue
             shape_children = shape.get_children()
             sc = ShapeContainer(shape._my_name, shape.get_shacl_syntax())
-            sc.add_children(shape_children)
+            sc.set_children(shape_children)
             for focus_signature, trace in shape._traces.items():
                 sc.add_trace(trace)
             TraceMgr().add_shape_container(shape._my_name, sc)

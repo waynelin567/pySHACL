@@ -6,14 +6,15 @@ class ShapeContainer:
         self._traces:list[Trace] = []
         self.shacl_syntax = shacl_syntax
         self._shape_uri_name = None
-        self._children = []
-    def add_children(self, children):
+        self._children:list[str]= []
+    def set_children(self, children):
         self._children = children
     def set_shape_uri_name(self, shape_uri_name:str):
         self._shape_uri_name = shape_uri_name
     def add_trace(self, trace:Trace):
         self._traces.append(trace)
     def print(self):
+        print(f"shape name: {self._shape_uri_name}")
         print("shacl syntax:")
         print(self.shacl_syntax)
         print("children:")
@@ -48,3 +49,15 @@ class TraceMgr:
     def get_shape(cls, shape_uri_name:str):
         assert shape_uri_name in cls._shapes, f"Shape {shape_uri_name} not found"
         return cls._shapes[shape_uri_name]
+    def get_shape_and_descendents(cls, shape_uri_name:str):
+        ret = []
+        def recurse(shape_uri_name):
+            ret.append(shape_uri_name)
+            shape = cls.get_shape(shape_uri_name)
+            for child in shape._children:
+                recurse(child)
+
+        shape = cls.get_shape(shape_uri_name)
+        for child in shape._children:
+            recurse(child)
+        return ret

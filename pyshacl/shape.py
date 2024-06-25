@@ -685,7 +685,7 @@ class Shape(object):
                 #if isinstance(obj, BNode) or isinstance(obj, URIRef):
                     add_children_from_rdf_list(obj)
 
-        return list(child_shapes)
+        return [str(child) for child in list(child_shapes)]
 
 class Trace():
     def __init__(self, focus):
