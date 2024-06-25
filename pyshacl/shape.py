@@ -726,9 +726,11 @@ class Trace():
         for s_str, types in subject_type.items():
             print(f"{s_str} a {', '.join(types)}", end=" ")
             if s_str in organized_triples:
-                print(" ;")
-                for p_str, objects in organized_triples[s_str].items():
-                    print(f"  {p_str} {', '.join(objects)}", end=" ;\n")
+                print(";")
+                num_predicates = len(organized_triples[s_str])
+                for i, (p_str, objects) in enumerate(organized_triples[s_str].items()):
+                    suffix = ";\n" if i < num_predicates - 1 else ""
+                    print(f"  {p_str} {', '.join(objects)}", end=f" {suffix}")
             print(".")
 
     def print(self):
