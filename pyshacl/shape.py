@@ -667,17 +667,38 @@ class Shape(object):
         SH_or = SH["or"]
         SH_xone = SH.xone
         SH_qualifiedValueShape = SH.qualifiedValueShape
-        nested_properties = [SH_property, SH_node]
-        logical_properties = [SH_and, SH_or, SH_not, SH_xone]
+
+        def add_nested_property_children():
+            nested_properties = [SH_property, SH_node]
+            for prop in nested_properties:
+                for obj in self.objects(prop):
+                    if isinstance(obj, (BNode, URIRef)):
+                        child_shapes.add(obj)
+
+        def add_logical_property_children():
+            logical_properties = [SH_and, SH_or, SH_not, SH_xone]
+            for prop in logical_properties:
+                for obj in self.objects(prop):
+                    if isinstance(obj, (BNode, URIRef)):
+                        add_children_from_rdf_list(obj)
+
+        def add_qualified_value_shape_children():
+            for obj in self.objects(SH_qualifiedValueShape):
+                if isinstance(obj, (BNode, URIRef)):
+                    first_shape = get_first_shape_from_qualifiedvalueshapes(obj)
+                    if first_shape:
+                        print(f"add {first_shape} for {str(self)}")
+                        child_shapes.add(first_shape)
+
         def add_children_from_rdf_list(list_node):
             while list_node and list_node != RDF.nil:
                 first = self.sg.graph.value(list_node, RDF.first)
                 if first:
                     child_shapes.add(first)
                 list_node = self.sg.graph.value(list_node, RDF.rest)
-                
+
         def get_first_shape_from_qualifiedvalueshapes(qnode):
-            shapes = [str(shape).strip("<>").split('Shape')[1].strip() for shape in self.sg.shapes if shape._my_name]
+            shapes = {str(shape).strip("<>").split('Shape')[1].strip() for shape in self.sg.shapes if shape._my_name}
             visited = set()
             stack = [qnode]
             while stack:
@@ -687,36 +708,34 @@ class Shape(object):
                 visited.add(current)
                 if str(current) in shapes:
                     return current
-                for prop in nested_properties+[SH_qualifiedValueShape]:
-                    for obj in self.sg.graph.objects(current, prop):
-                        if isinstance(obj, (BNode, URIRef)):
-                            stack.append(obj)
-                for prop in logical_properties:
-                    for list_node in self.sg.graph.objects(current, prop):
-                        if isinstance(list_node, (BNode, URIRef)):
-                            while list_node and list_node != RDF.nil:
-                                first = self.sg.graph.value(list_node, RDF.first)
-                                if first:
-                                    stack.append(first)
-                                list_node = self.sg.graph.value(list_node, RDF.rest)
+                stack.extend(self.get_nested_objects(current, SH_property, SH_node, SH_qualifiedValueShape))
+                stack.extend(self.get_logical_objects(current, SH_and, SH_or, SH_not, SH_xone))
             return None
+        
+        add_nested_property_children()
+        add_logical_property_children()
+        add_qualified_value_shape_children()
 
-        for prop in nested_properties:
-            for obj in self.objects(prop):
-                #if isinstance(obj, BNode) or isinstance(obj, URIRef):
-                    child_shapes.add(obj)
-        for prop in logical_properties:
-            for obj in self.objects(prop):
-                #if isinstance(obj, BNode) or isinstance(obj, URIRef):
-                    add_children_from_rdf_list(obj)
-
-        for obj in self.objects(SH_qualifiedValueShape):
-            #if isinstance(obj, BNode) or isinstance(obj, URIRef):
-                first_shape = get_first_shape_from_qualifiedvalueshapes(obj)
-                if first_shape:
-                    print (f"add {first_shape} for {str(self)}")
-                    child_shapes.add(first_shape)
         return [str(child) for child in list(child_shapes)]
+    def get_nested_objects(self, node, *properties):
+        objects = []
+        for prop in properties:
+            for obj in self.sg.graph.objects(node, prop):
+                if isinstance(obj, (BNode, URIRef)):
+                    objects.append(obj)
+        return objects
+
+    def get_logical_objects(self, node, *properties):
+        objects = []
+        for prop in properties:
+            for list_node in self.sg.graph.objects(node, prop):
+                if isinstance(list_node, (BNode, URIRef)):
+                    while list_node and list_node != RDF.nil:
+                        first = self.sg.graph.value(list_node, RDF.first)
+                        if first:
+                            objects.append(first)
+                        list_node = self.sg.graph.value(list_node, RDF.rest)
+        return objects
 
 class Trace():
     def __init__(self, focus):
