@@ -29,6 +29,13 @@ class ShapeContainer:
     def get_focus_neighbors(self, graph:Graph):
         for trace in self._traces:
             trace.get_focus_neighbors(graph)
+
+    def get_prompt_string(self):
+        s = f"{self.shacl_syntax}\n"
+        for trace in self._traces:
+            s += trace.get_prompt_string()
+        return s 
+
 class TraceMgr:
     _instance = None
     _shapes:dict[str, ShapeContainer] = {}
@@ -49,7 +56,7 @@ class TraceMgr:
     def get_shape(cls, shape_uri_name:str):
         assert shape_uri_name in cls._shapes, f"Shape {shape_uri_name} not found"
         return cls._shapes[shape_uri_name]
-    def get_shape_and_descendents(cls, shape_uri_name:str):
+    def get_shape_and_descendents(cls, shape_uri_name:str) -> list[str]:
         ret = []
         def recurse(shape_uri_name):
             ret.append(shape_uri_name)

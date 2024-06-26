@@ -802,16 +802,17 @@ class Trace():
             if p_str not in organized_triples[s_str]:
                 organized_triples[s_str][p_str] = []
             organized_triples[s_str][p_str].append(o_str)
-
+        ret_str = ""
         for s_str, types in subject_type.items():
-            print(f"{s_str} a {', '.join(types)}", end=" ")
+            ret_str += f"{s_str} a {', '.join(types)} "
             if s_str in organized_triples:
-                print(";")
+                ret_str += (";\n")
                 num_predicates = len(organized_triples[s_str])
                 for i, (p_str, objects) in enumerate(organized_triples[s_str].items()):
                     suffix = ";\n" if i < num_predicates - 1 else ""
-                    print(f"  {p_str} {', '.join(objects)}", end=f" {suffix}")
-            print(".")
+                    ret_str += f"  {p_str} {', '.join(objects)} {suffix}"
+            ret_str += ".\n"
+        return ret_str
 
     def print(self):
         print(f"Focus: {self.focus_ls}")
@@ -820,7 +821,21 @@ class Trace():
             print(f"\t{c} is {sat}")
         for f, connections in self.focus_neighbors.items():
             triples = self.focus_neighbors[f]
-            self.pretty_print_triples(triples)
+            print(self.pretty_print_triples(triples))
+
+    def get_prompt_string(self):
+        s = "Focus:\n"
+        s += ", ".join(self.focus_ls)
+        s += "\nReasons:\n"
+        for c, sat in self.components.items():
+            c_str = str(c).strip("<>").split(" on ")[0].strip()
+            s += f"\t{c_str} is violated\n"
+        s += "RDF data graph:\n"
+        for f, connections in self.focus_neighbors.items():
+            triples = self.focus_neighbors[f]
+            s += self.pretty_print_triples(triples)
+        return s
+
 class ConstraintComponent():
     def __init__(self, component, sat:bool):
         self.component = component
