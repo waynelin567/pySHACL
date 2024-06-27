@@ -50,7 +50,7 @@ class ShapeContainer:
         self._traces[0].set_components({source_cc:False})
         self._children = [str(child) for child in source_cc.get_nodes_from_rdf_list()]
         self._shape_name = f"<PropertyShape {self.shape_uri_name}_{source_cc.constraint_name()}>"
-        self.shacl_syntax = self._shape.get_shacl_syntax()
+        self.shacl_syntax = self._shape.get_shacl_syntax(for_logical=True)
 
 class TraceMgr:
     _instance = None
@@ -72,7 +72,7 @@ class TraceMgr:
     def get_shape(cls, shape_uri_name:str):
         assert shape_uri_name in cls._shapes, f"Shape {shape_uri_name} not found"
         return cls._shapes[shape_uri_name]
-    def get_shape_and_descendents(cls, shape_uri_name:str) -> list[str]:
+    def get_shape_descendants(cls, shape_uri_name:str) -> list[str]:
         ret = []
         def recurse(shape_uri_name):
             ret.append(shape_uri_name)

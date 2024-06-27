@@ -625,11 +625,11 @@ class Shape(object):
         assert False  # We should always find a non-blank parent
         return None  # If no non-blank parent is found
 
-    def get_shacl_syntax(self):
+    def get_shacl_syntax(self, for_logical:bool=False):
         ns_mgr = get_building_motif().template_ns_mgr
         g = self.sg.graph
         shape_syntax = []
-
+        logical_constraints = [SH["not"], SH["and"], SH["or"], SH.xone]
         def format_node(node):
             """Format the RDF node for display"""
             if isinstance(node, URIRef):
@@ -657,7 +657,15 @@ class Shape(object):
             shape_syntax.append(f"{format_node(self.node)} a {', '.join(rdf_types)} ;")
 
         # Add properties and constraints
-        add_properties(self.node, 2)
+        if for_logical:
+            logical_ps = [(p,o) for p, o in g.predicate_objects(self.node) if p in logical_constraints]
+            indent = 2
+            for p, o in logical_ps:
+                shape_syntax.append(f"{' ' * indent}{format_node(p)} [")
+                add_properties(o, indent + 2)
+                shape_syntax.append(f"{' ' * indent}] ;")
+        else:
+            add_properties(self.node, 2)
 
         return "\n".join(shape_syntax)
     def get_children(self):
