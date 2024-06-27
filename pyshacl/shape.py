@@ -751,7 +751,11 @@ class Trace():
     def add_component(self, component, sat):
         self.components[component] = sat
 
+    def set_components(self, components):
+        self.components = components
+
     def get_focus_neighbors(self, graph:GraphLike):
+        assert self.focus_neighbors == {}, f"focus_neighbors {self.focus_neighbors}"
         for f in self.focus_ls:
             self._get_neighbors(graph, f)
 

@@ -61,6 +61,13 @@ class NotConstraintComponent(ConstraintComponent):
         )
         return [rdflib.Literal(m)]
 
+    def get_nodes_from_rdf_list(self):
+        ret = []
+        for n in self.not_list:
+            for n_c in self.shape.sg.graph.items(n):
+                ret.append(n_c)
+        return ret 
+
     def evaluate(self, datagraph: GraphLike, focus_value_nodes: Dict, _evaluation_path: List):
         """
 
@@ -158,6 +165,13 @@ class AndConstraintComponent(ConstraintComponent):
         )
         m = "Node {} does not conform to all shapes in {}".format(stringify_node(datagraph, value_node), and_list)
         return [rdflib.Literal(m)]
+
+    def get_nodes_from_rdf_list(self):
+        ret = []
+        for a in self.and_list:
+            for a_c in self.shape.sg.graph.items(a):
+                ret.append(a_c)
+        return ret 
 
     def evaluate(self, target_graph: GraphLike, focus_value_nodes: Dict, _evaluation_path: List):
         """
@@ -258,6 +272,12 @@ class OrConstraintComponent(ConstraintComponent):
             stringify_node(datagraph, value_node), or_list
         )
         return [rdflib.Literal(m)]
+    def get_nodes_from_rdf_list(self):
+        ret = []
+        for o in self.or_list:
+            for o_c in self.shape.sg.graph.items(o):
+                ret.append(o_c)
+        return ret 
 
     def evaluate(self, target_graph: GraphLike, focus_value_nodes: Dict, _evaluation_path: List):
         """
@@ -357,6 +377,13 @@ class XoneConstraintComponent(ConstraintComponent):
             stringify_node(datagraph, value_node), xone_list
         )
         return [rdflib.Literal(m)]
+    
+    def get_nodes_from_rdf_list(self):
+        ret = []
+        for a in self.xone_nodes:
+            for a_c in self.shape.sg.graph.items(a):
+                ret.append(a_c)
+        return ret 
 
     def evaluate(self, target_graph: GraphLike, focus_value_nodes: Dict, _evaluation_path: List):
         """
