@@ -84,3 +84,6 @@ class TraceMgr:
         for child in shape._children:
             recurse(child)
         return ret
+    
+    def clear(cls):
+        cls._shapes.clear()

@@ -695,7 +695,6 @@ class Shape(object):
                 if isinstance(obj, (BNode, URIRef)):
                     first_shape = get_first_shape_from_qualifiedvalueshapes(obj)
                     if first_shape:
-                        print(f"add {first_shape} for {str(self)}")
                         child_shapes.add(first_shape)
 
         def add_children_from_rdf_list(list_node):
