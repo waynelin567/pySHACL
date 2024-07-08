@@ -225,8 +225,8 @@ class Validator(object):
         print("=======================Getting Traces=======================")
         shapes = self.shacl_graph.shapes
         for shape in shapes:
-            if shape._my_name is None:
-                continue
+#            if shape._my_name is None:
+#                continue
             sc = ShapeContainer(shape)
             TraceMgr().add_shape_container(sc.shape_uri_name, sc)
         TraceMgr().get_focus_neighbors(self.data_graph)

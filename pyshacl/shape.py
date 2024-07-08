@@ -90,7 +90,7 @@ class Shape(object):
         self._path = path
         self._advanced = False
         self._traces:dict[str, Trace] = {}
-        self._my_name:str = None
+        self._my_name:str = str(self) 
         deactivated_vals = set(self.objects(SH_deactivated))
         if len(deactivated_vals) > 1:
             # TODO:coverage: we don't have any tests for invalid shapes
@@ -625,6 +625,14 @@ class Shape(object):
         assert False  # We should always find a non-blank parent
         return None  # If no non-blank parent is found
 
+    def get_children_from_rdf_list(self, list_node):
+        list_children = []
+        while list_node and list_node != RDF.nil:
+            first = self.sg.graph.value(list_node, RDF.first)
+            if first:
+                list_children.append(first)
+            list_node = self.sg.graph.value(list_node, RDF.rest)
+        return list_children
     def get_shacl_syntax(self, for_logical:bool=False):
         ns_mgr = get_building_motif().template_ns_mgr
         g = self.sg.graph
@@ -644,7 +652,13 @@ class Shape(object):
         def add_properties(node, indent=0):
             for p, o in g.predicate_objects(node):
                 indent_str = " " * indent
-                if isinstance(o, BNode):
+                if p in [SH["and"], SH["or"], SH.xone]:
+                    syntax_str = f"{indent_str}{format_node(p)} [ "
+                    list_children = self.get_children_from_rdf_list(o)
+                    syntax_str += ", ".join([format_node(c) for c in list_children])
+                    syntax_str += " ] ;"
+                    shape_syntax.append(syntax_str)
+                elif isinstance(o, BNode):
                     shape_syntax.append(f"{indent_str}{format_node(p)} [")
                     add_properties(o, indent + 2)
                     shape_syntax.append(f"{indent_str}] ;")
@@ -660,10 +674,18 @@ class Shape(object):
         if for_logical:
             logical_ps = [(p,o) for p, o in g.predicate_objects(self.node) if p in logical_constraints]
             indent = 2
+            indent_str = " " * indent
             for p, o in logical_ps:
-                shape_syntax.append(f"{' ' * indent}{format_node(p)} [")
-                add_properties(o, indent + 2)
-                shape_syntax.append(f"{' ' * indent}] ;")
+                if p in [SH["and"], SH["or"], SH.xone]:
+                    syntax_str = f"{indent_str}{format_node(p)} [ "
+                    list_children = self.get_children_from_rdf_list(o)
+                    syntax_str += ", ".join([format_node(c) for c in list_children])
+                    syntax_str += " ] ;"
+                    shape_syntax.append(syntax_str)
+                elif isinstance(o, BNode):
+                    shape_syntax.append(f"{indent_str}{format_node(p)} [")
+                    add_properties(o, indent + 2)
+                    shape_syntax.append(f"{indent_str}] ;")
         else:
             add_properties(self.node, 2)
 
@@ -677,18 +699,22 @@ class Shape(object):
         SH_qualifiedValueShape = SH.qualifiedValueShape
 
         def add_nested_property_children():
-            nested_properties = [SH_property, SH_node]
+            nested_properties = [SH_property, SH_node, SH_not]
             for prop in nested_properties:
                 for obj in self.objects(prop):
                     if isinstance(obj, (BNode, URIRef)):
                         child_shapes.add(obj)
 
         def add_logical_property_children():
-            logical_properties = [SH_and, SH_or, SH_not, SH_xone]
+            logical_properties = [SH_and, SH_or, SH_xone]
             for prop in logical_properties:
                 for obj in self.objects(prop):
                     if isinstance(obj, (BNode, URIRef)):
-                        add_children_from_rdf_list(obj)
+                        child_shapes.update(c for c in self.get_children_from_rdf_list(obj))
+#                        children = self.get_children_from_rdf_list(obj)
+#                        for c in children:
+#                            child_shapes.add(c)
+#                        add_children_from_rdf_list(obj)
 
         def add_qualified_value_shape_children():
             for obj in self.objects(SH_qualifiedValueShape):
@@ -697,15 +723,15 @@ class Shape(object):
                     if first_shape:
                         child_shapes.add(first_shape)
 
-        def add_children_from_rdf_list(list_node):
-            while list_node and list_node != RDF.nil:
-                first = self.sg.graph.value(list_node, RDF.first)
-                if first:
-                    child_shapes.add(first)
-                list_node = self.sg.graph.value(list_node, RDF.rest)
+#        def add_children_from_rdf_list(list_node):
+#            while list_node and list_node != RDF.nil:
+#                first = self.sg.graph.value(list_node, RDF.first)
+#                if first:
+#                    child_shapes.add(first)
+#                list_node = self.sg.graph.value(list_node, RDF.rest)
 
         def get_first_shape_from_qualifiedvalueshapes(qnode):
-            shapes = {str(shape).strip("<>").split('Shape')[1].strip() for shape in self.sg.shapes if shape._my_name}
+            shapes = {str(shape).strip("<>").split('Shape')[1].strip() for shape in self.sg.shapes}# if shape._my_name}
             visited = set()
             stack = [qnode]
             while stack:
@@ -743,6 +769,11 @@ class Shape(object):
                             objects.append(first)
                         list_node = self.sg.graph.value(list_node, RDF.rest)
         return objects
+    def isSAT(self):
+        for t in self._traces.values():
+            if not t.isSAT:
+                return False
+        return True
 
 class Trace():
     def __init__(self, focus):
