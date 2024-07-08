@@ -711,10 +711,6 @@ class Shape(object):
                 for obj in self.objects(prop):
                     if isinstance(obj, (BNode, URIRef)):
                         child_shapes.update(c for c in self.get_children_from_rdf_list(obj))
-#                        children = self.get_children_from_rdf_list(obj)
-#                        for c in children:
-#                            child_shapes.add(c)
-#                        add_children_from_rdf_list(obj)
 
         def add_qualified_value_shape_children():
             for obj in self.objects(SH_qualifiedValueShape):
@@ -723,12 +719,6 @@ class Shape(object):
                     if first_shape:
                         child_shapes.add(first_shape)
 
-#        def add_children_from_rdf_list(list_node):
-#            while list_node and list_node != RDF.nil:
-#                first = self.sg.graph.value(list_node, RDF.first)
-#                if first:
-#                    child_shapes.add(first)
-#                list_node = self.sg.graph.value(list_node, RDF.rest)
 
         def get_first_shape_from_qualifiedvalueshapes(qnode):
             shapes = {str(shape).strip("<>").split('Shape')[1].strip() for shape in self.sg.shapes}# if shape._my_name}

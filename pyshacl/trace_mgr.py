@@ -3,19 +3,14 @@ from rdflib import Graph, URIRef
 from pyshacl.constraints import ConstraintComponent
 from copy import deepcopy
 class ShapeContainer:
-    def __init__(self, shape:Shape, copy:bool=False):
+    def __init__(self, shape:Shape):
         self._shape = shape
         self._shape_name = shape._my_name
         self.shacl_syntax = shape.get_shacl_syntax() 
         self._children:list[str] = shape.get_children()
         self._traces:list[Trace] = []
         for focus_signature, trace in shape._traces.items():
-            if copy:
-                new_trace = Trace(trace.focus_ls)
-                new_trace.focus_neighbors = deepcopy(trace.focus_neighbors)
-                self._traces.append(new_trace)
-            else:
-                self._traces.append(trace)
+            self._traces.append(trace)
 
     @property
     def shape_uri_name(self):
@@ -43,14 +38,6 @@ class ShapeContainer:
             s += trace.get_prompt_string()
         return s 
 
-    #### only be called to add an additional shape container
-    #### because pyshacl has a weird way of handling logical constraints when they are the violation source
-    def modify_for_logical_source_shape(self, source_cc:ConstraintComponent):
-        assert len(self._traces) == 1, f"Expected exactly one trace, got {len(self._traces)}"
-        self._traces[0].set_components({source_cc:False})
-        self._children = [str(child) for child in source_cc.get_nodes_from_rdf_list()]
-        self._shape_name = f"<PropertyShape {self.shape_uri_name}_{source_cc.constraint_name()}>"
-        self.shacl_syntax = self._shape.get_shacl_syntax(for_logical=True)
 
 class TraceMgr:
     _instance = None
