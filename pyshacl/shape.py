@@ -625,6 +625,12 @@ class Shape(object):
         assert False  # We should always find a non-blank parent
         return None  # If no non-blank parent is found
 
+    def is_shacl_list(self, node):
+        return (
+            (node, RDF.first, None) in self.sg.graph or
+            (node, RDF.rest, None) in self.sg.graph
+        )
+
     def get_children_from_rdf_list(self, list_node):
         list_children = []
         while list_node and list_node != RDF.nil:
@@ -633,11 +639,10 @@ class Shape(object):
                 list_children.append(first)
             list_node = self.sg.graph.value(list_node, RDF.rest)
         return list_children
-    def get_shacl_syntax(self, for_logical:bool=False):
+    def get_shacl_syntax(self):
         ns_mgr = get_building_motif().template_ns_mgr
         g = self.sg.graph
         shape_syntax = []
-        logical_constraints = [SH["not"], SH["and"], SH["or"], SH.xone]
         def format_node(node):
             """Format the RDF node for display"""
             if isinstance(node, URIRef):
@@ -652,12 +657,15 @@ class Shape(object):
         def add_properties(node, indent=0):
             for p, o in g.predicate_objects(node):
                 indent_str = " " * indent
-                if p in [SH["and"], SH["or"], SH.xone]:
-                    syntax_str = f"{indent_str}{format_node(p)} [ "
+                if self.is_shacl_list(o):
+                    shape_syntax.append(f"{indent_str}{format_node(p)} [ ")
                     list_children = self.get_children_from_rdf_list(o)
-                    syntax_str += ", ".join([format_node(c) for c in list_children])
-                    syntax_str += " ] ;"
-                    shape_syntax.append(syntax_str)
+                    for c in list_children:
+                        if isinstance(c, BNode):
+                            add_properties(c, indent + 2)
+                        else:
+                            shape_syntax.append(f"{indent_str} {format_node(c)} ;")
+                    shape_syntax.append(f"{indent_str}] ;")
                 elif isinstance(o, BNode):
                     shape_syntax.append(f"{indent_str}{format_node(p)} [")
                     add_properties(o, indent + 2)
@@ -670,24 +678,7 @@ class Shape(object):
             rdf_types = [format_node(t) for t in rdf_types]
             shape_syntax.append(f"{format_node(self.node)} a {', '.join(rdf_types)} ;")
 
-        # Add properties and constraints
-        if for_logical:
-            logical_ps = [(p,o) for p, o in g.predicate_objects(self.node) if p in logical_constraints]
-            indent = 2
-            indent_str = " " * indent
-            for p, o in logical_ps:
-                if p in [SH["and"], SH["or"], SH.xone]:
-                    syntax_str = f"{indent_str}{format_node(p)} [ "
-                    list_children = self.get_children_from_rdf_list(o)
-                    syntax_str += ", ".join([format_node(c) for c in list_children])
-                    syntax_str += " ] ;"
-                    shape_syntax.append(syntax_str)
-                elif isinstance(o, BNode):
-                    shape_syntax.append(f"{indent_str}{format_node(p)} [")
-                    add_properties(o, indent + 2)
-                    shape_syntax.append(f"{indent_str}] ;")
-        else:
-            add_properties(self.node, 2)
+        add_properties(self.node, 2)
 
         return "\n".join(shape_syntax)
     def get_children(self):
