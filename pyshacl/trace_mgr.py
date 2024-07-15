@@ -6,12 +6,16 @@ class ShapeContainer:
     def __init__(self, shape:Shape):
         self._shape = shape
         self._shape_name = shape._my_name
-        self.shacl_syntax = shape.get_shacl_syntax() 
+        self._shacl_syntax = None 
         self._children:list[str] = shape.get_children()
         self._traces:list[Trace] = []
         for focus_signature, trace in shape._traces.items():
             self._traces.append(trace)
-
+    @property
+    def shacl_syntax(self):
+        if self._shacl_syntax is None:
+            self._shacl_syntax = self._shape.get_shacl_syntax()
+        return self._shacl_syntax
     @property
     def shape_uri_name(self):
         # for some reason this shape_uri_name is hard to get from shape.py
@@ -22,8 +26,6 @@ class ShapeContainer:
 
     def print(self):
         print(f"shape name: {self.shape_uri_name}")
-        print("shacl syntax:")
-        print(self.shacl_syntax)
         print("children:")
         print(self._children)
         for trace in self._traces:

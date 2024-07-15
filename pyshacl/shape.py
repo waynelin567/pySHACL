@@ -6,7 +6,7 @@ import sys
 from decimal import Decimal
 from time import perf_counter
 from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Type, Union
-from rdflib import BNode, Literal, URIRef
+from rdflib import BNode, Literal, URIRef, Graph
 import inspect
 from rdflib.namespace import RDF
 from .consts import SH
@@ -64,7 +64,8 @@ class Shape(object):
         '_names',
         '_descriptions',
         '_traces',
-        '_my_name'
+        '_my_name', 
+        '_best_focus'
     )
 
     def __init__(
@@ -92,6 +93,7 @@ class Shape(object):
         self._traces:dict[str, Trace] = {}
         self._my_name:str = str(self) 
         deactivated_vals = set(self.objects(SH_deactivated))
+        self._best_focus = None
         if len(deactivated_vals) > 1:
             # TODO:coverage: we don't have any tests for invalid shapes
             raise ShapeLoadError(
@@ -639,7 +641,63 @@ class Shape(object):
                 list_children.append(first)
             list_node = self.sg.graph.value(list_node, RDF.rest)
         return list_children
-    def get_shacl_syntax(self):
+    def rm_prefixes(self, g:Graph):
+        s = g.serialize()
+        filtered_output = "\n".join(line for line in s.splitlines() if not line.startswith("@prefix"))
+        s = filtered_output.strip()
+        return s
+    def min_cardinality_constraint_is_1(self):
+        g = self.sg.graph
+        node = self.node
+        while True:
+            parent = list(g.subject_predicates(node))
+            assert len(parent) == 1
+            parent_pred = parent[0][1]
+            parent_node = parent[0][0]
+            if parent_pred == SH_property:
+                break
+            node = parent_node
+        property_node = node
+        property_shape = self.get_other_shape(node) 
+        assert (property_shape.is_property_shape), "The shape found should be a property shape"
+        ret = False
+        qual_min_cnt = next(g.objects(property_node, SH.qualifiedMinCount), None)
+        qual_max_cnt = next(g.objects(property_node, SH.qualifiedMaxCount), None)
+        min_cnt = next(g.objects(property_node, SH.minCount), None)
+        max_cnt = next(g.objects(property_node, SH.maxCount), None)
+        if qual_min_cnt is not None and int(qual_min_cnt) == 1:
+            if qual_max_cnt is None or int(qual_max_cnt) == 1:
+                ret = True
+        if min_cnt is not None and int(min_cnt) == 1:
+            if max_cnt is not None and int(max_cnt) == 1:
+                ret = True
+        return ret
+    def do_not_include(self, cardinality_is_1, property_shape):
+        ret = False
+        if cardinality_is_1 and\
+            self.best_focus is not None and self.best_focus['sat_num'] >= 1 and\
+            self.get_other_shape(property_shape).isSAT(self.best_focus['best_focus']):
+                ret = True
+        return ret
+    def get_shacl_syntax(self, exclude_SAT=True):
+        cbd_graph = Graph()
+        g = self.sg.graph
+        cardinality_is_1 = self.min_cardinality_constraint_is_1()
+        def add_to_cbd(node):
+            for p, o in g.predicate_objects(node):
+                if p == RDF_type and o != SH.NodeShape:
+                    continue
+                if exclude_SAT:
+                    if p == SH_property and not (o is None):
+                        if self.do_not_include(cardinality_is_1, o):
+                            continue
+                cbd_graph.add((node, p, o))
+                if type(o) == BNode: 
+                    add_to_cbd(o)
+        add_to_cbd(self.node)
+        ret_str = self.rm_prefixes(cbd_graph)
+        return ret_str 
+    def get_shacl_syntax_old(self):
         ns_mgr = get_building_motif().template_ns_mgr
         g = self.sg.graph
         shape_syntax = []
@@ -750,12 +808,36 @@ class Shape(object):
                             objects.append(first)
                         list_node = self.sg.graph.value(list_node, RDF.rest)
         return objects
-    def isSAT(self):
+    def isSAT(self, focus):
         for t in self._traces.values():
-            if not t.isSAT:
-                return False
-        return True
+            assert len(t.focus_ls) == 1
+            if list(t.focus_ls)[0] == focus:
+                return t.isSAT
+        assert False, f"Focus {focus} not found in traces"
+    @property
+    def best_focus(self):
+        if self._best_focus is not None:
+            return self._best_focus
+        if len(self._traces) == 1 and len(list(self._traces.values())[0].components) == 0:
+            return None 
+        if len(self._traces) == 0:
+            return None
+        focuses = {}
+        for t in self._traces.values():
+            assert len(t.focus_ls) == 1
+            focus = list(t.focus_ls)[0]
+            focuses[focus] = 0
 
+        for p, o in self.sg.graph.predicate_objects(self.node):
+            if p == SH_property:
+                shape = self.get_other_shape(o)
+                for focus in focuses.keys():
+                    if shape.isSAT(focus):
+                        focuses[focus] += 1
+        best = max(focuses, key=focuses.get)
+        sat_num = focuses[best]
+        self._best_focus = {"best_focus":best, "sat_num":sat_num}
+        return self._best_focus 
 class Trace():
     def __init__(self, focus):
         self.focus_ls = focus
