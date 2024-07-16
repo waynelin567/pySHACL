@@ -695,7 +695,9 @@ class Shape(object):
         g = self.sg.graph
         cardinality_is_1 = False
         if exclude_SAT and not self.is_property_shape:
-            cardinality_is_1 = self.min_cardinality_constraint_is_1()
+            property_shapes = [(p, o) for p, o in g.predicate_objects(self.node) if p == SH_property and not (o is None)]
+            if len(property_shapes) >= 2:
+                cardinality_is_1 = self.min_cardinality_constraint_is_1()
         def add_to_cbd(node):
             for p, o in g.predicate_objects(node):
                 if p == RDF_type and o != SH.NodeShape:
