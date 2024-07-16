@@ -1,16 +1,21 @@
 from .shape import Trace, Shape
-from rdflib import Graph, URIRef
-from pyshacl.constraints import ConstraintComponent
-from copy import deepcopy
+from rdflib import Graph
 class ShapeContainer:
     def __init__(self, shape:Shape):
         self._shape = shape
         self._shape_name = shape._my_name
         self._shacl_syntax = None 
-        self._children:list[str] = shape.get_children()
+        self._children:list[str] = [] 
         self._traces:list[Trace] = []
         for focus_signature, trace in shape._traces.items():
             self._traces.append(trace)
+    @property
+    def children(self):
+        if not self._children:
+            if self._shacl_syntax is None:
+                self.shacl_syntax ## need to populate skipped_properties
+            self._children = self._shape.get_children()
+        return self._children
     @property
     def shacl_syntax(self):
         if self._shacl_syntax is None:
@@ -27,7 +32,7 @@ class ShapeContainer:
     def print(self):
         print(f"shape name: {self.shape_uri_name}")
         print("children:")
-        print(self._children)
+        print(self.children)
         for trace in self._traces:
             trace.print()
     def get_focus_neighbors(self, graph:Graph):
@@ -66,11 +71,11 @@ class TraceMgr:
         def recurse(shape_uri_name):
             ret.append(shape_uri_name)
             shape = cls.get_shape(shape_uri_name)
-            for child in shape._children:
+            for child in shape.children:
                 recurse(child)
 
         shape = cls.get_shape(shape_uri_name)
-        for child in shape._children:
+        for child in shape.children:
             recurse(child)
         return ret
     

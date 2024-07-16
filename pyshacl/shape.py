@@ -65,7 +65,8 @@ class Shape(object):
         '_descriptions',
         '_traces',
         '_my_name', 
-        '_best_focus'
+        '_best_focus', 
+        '_skipped_properties'
     )
 
     def __init__(
@@ -94,6 +95,7 @@ class Shape(object):
         self._my_name:str = str(self) 
         deactivated_vals = set(self.objects(SH_deactivated))
         self._best_focus = None
+        self._skipped_properties = []
         if len(deactivated_vals) > 1:
             # TODO:coverage: we don't have any tests for invalid shapes
             raise ShapeLoadError(
@@ -646,19 +648,27 @@ class Shape(object):
         filtered_output = "\n".join(line for line in s.splitlines() if not line.startswith("@prefix"))
         s = filtered_output.strip()
         return s
-    def min_cardinality_constraint_is_1(self):
+    def min_cardinality_constraint_is_1(self) -> bool:
+        if len(self._traces) == 1:
+            if len(list(self._traces.values())[0].focus_ls) == 1:
+                return True
         g = self.sg.graph
         node = self.node
         while True:
-            parent = list(g.subject_predicates(node))
-            assert len(parent) == 1
-            parent_pred = parent[0][1]
-            parent_node = parent[0][0]
+            parents = [(s,p) for s, p in list(g.subject_predicates(node)) if len(self.get_other_shape(s)._traces) > 0]
+            if len(parents) > 1:
+                return False
+            if len(parents) == 0:
+                assert False, "don't know when/if it happens, probably should break"
+            parent_pred = parents[0][1]
+            parent_node = parents[0][0]
             if parent_pred == SH_property:
                 break
             node = parent_node
         property_node = node
         property_shape = self.get_other_shape(node) 
+        if len(property_shape._traces) > 1: return False
+        elif len(list(property_shape._traces.values())[0].focus_ls) > 1: return False
         assert (property_shape.is_property_shape), "The shape found should be a property shape"
         ret = False
         qual_min_cnt = next(g.objects(property_node, SH.qualifiedMinCount), None)
@@ -678,16 +688,19 @@ class Shape(object):
             self.best_focus is not None and self.best_focus['sat_num'] >= 1 and\
             self.get_other_shape(property_shape).isSAT(self.best_focus['best_focus']):
                 ret = True
+                self._skipped_properties.append(property_shape)
         return ret
     def get_shacl_syntax(self, exclude_SAT=True):
         cbd_graph = Graph()
         g = self.sg.graph
-        cardinality_is_1 = self.min_cardinality_constraint_is_1()
+        cardinality_is_1 = False
+        if exclude_SAT and not self.is_property_shape:
+            cardinality_is_1 = self.min_cardinality_constraint_is_1()
         def add_to_cbd(node):
             for p, o in g.predicate_objects(node):
                 if p == RDF_type and o != SH.NodeShape:
                     continue
-                if exclude_SAT:
+                if exclude_SAT and not self.is_property_shape:
                     if p == SH_property and not (o is None):
                         if self.do_not_include(cardinality_is_1, o):
                             continue
@@ -752,7 +765,8 @@ class Shape(object):
             for prop in nested_properties:
                 for obj in self.objects(prop):
                     if isinstance(obj, (BNode, URIRef)):
-                        child_shapes.add(obj)
+                        if not (obj in self._skipped_properties):
+                            child_shapes.add(obj)
 
         def add_logical_property_children():
             logical_properties = [SH_and, SH_or, SH_xone]
