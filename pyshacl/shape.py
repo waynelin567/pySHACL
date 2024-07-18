@@ -690,7 +690,7 @@ class Shape(object):
                 ret = True
                 self._skipped_properties.append(property_shape)
         return ret
-    def get_shacl_syntax(self, exclude_SAT=True):
+    def get_shacl_syntax(self, exclude_SAT):
         cbd_graph = Graph()
         g = self.sg.graph
         cardinality_is_1 = False

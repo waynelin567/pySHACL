@@ -19,7 +19,7 @@ class ShapeContainer:
     @property
     def shacl_syntax(self):
         if self._shacl_syntax is None:
-            self._shacl_syntax = self._shape.get_shacl_syntax()
+            self._shacl_syntax = self._shape.get_shacl_syntax(TraceMgr()._prune_shape)
         return self._shacl_syntax
     @property
     def shape_uri_name(self):
@@ -49,6 +49,8 @@ class ShapeContainer:
 class TraceMgr:
     _instance = None
     _shapes:dict[str, ShapeContainer] = {}
+    _prune_shape: bool = False
+    _prune_data: bool = False
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(TraceMgr, cls).__new__(cls)
