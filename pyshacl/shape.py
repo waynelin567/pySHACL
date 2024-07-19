@@ -665,23 +665,14 @@ class Shape(object):
             if parent_pred == SH_property:
                 break
             node = parent_node
-        property_node = node
         property_shape = self.get_other_shape(node) 
         if len(property_shape._traces) > 1: return False
         elif len(list(property_shape._traces.values())[0].focus_ls) > 1: return False
         assert (property_shape.is_property_shape), "The shape found should be a property shape"
-        ret = False
-        qual_min_cnt = next(g.objects(property_node, SH.qualifiedMinCount), None)
-        qual_max_cnt = next(g.objects(property_node, SH.qualifiedMaxCount), None)
-        min_cnt = next(g.objects(property_node, SH.minCount), None)
-        max_cnt = next(g.objects(property_node, SH.maxCount), None)
-        if qual_min_cnt is not None and int(qual_min_cnt) == 1:
-            if qual_max_cnt is None or int(qual_max_cnt) == 1:
-                ret = True
-        if min_cnt is not None and int(min_cnt) == 1:
-            if max_cnt is not None and int(max_cnt) == 1:
-                ret = True
-        return ret
+        if list(property_shape._traces.values())[0].min_cardinality_constraint_is_violated():
+            return True
+        else:
+            return False
     def do_not_include(self, cardinality_is_1, property_shape):
         ret = False
         if cardinality_is_1 and\
@@ -859,6 +850,15 @@ class Trace():
         self.focus_ls = focus
         self.components = {}
         self.focus_neighbors = {}
+    def min_cardinality_constraint_is_violated(self):
+        for c, sat in self.components.items():
+            if not sat:
+                if "QualifiedValueShape" in str(type(c)):
+                    if c.minCount_violated:
+                        return True
+                elif "MinCount" in str(type(c)):
+                    return True
+        return False
     @property
     def isSAT(self):
         for c, sat in self.components.items():
