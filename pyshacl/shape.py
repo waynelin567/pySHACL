@@ -947,11 +947,7 @@ class Trace():
     def get_prompt_string(self):
         s = "Focus:\n"
         s += ", ".join(self.focus_ls)
-        s += "\nReasons:\n"
-        for c, sat in self.components.items():
-            c_str = str(c).strip("<>").split(" on ")[0].strip()
-            s += f"\t{c_str} is violated\n"
-        s += "RDF data graph:\n"
+        s += "\nRDF data graph:\n"
         for f, connections in self.focus_neighbors.items():
             triples = self.focus_neighbors[f]
             s += self.pretty_print_triples(triples)
