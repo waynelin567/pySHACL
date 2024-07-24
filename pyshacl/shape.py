@@ -584,6 +584,7 @@ class Shape(object):
                 break
             if mydebug:
                 self.record_trace(focus, c, non_conformant)
+#                print(f"\t\tFocus:{focus}", c, "Passes" if not non_conformant else "Fails")
         applicable_custom_constraints = self.find_custom_constraints()
         for a in applicable_custom_constraints:
             if non_conformant and abort_on_first:
@@ -849,7 +850,7 @@ class Trace():
     def __init__(self, focus):
         self.focus_ls = focus
         self.components = {}
-        self.focus_neighbors = {}
+        self.focus_neighbors:dict[URIRef:set] = {}
     def min_cardinality_constraint_is_violated(self):
         for c, sat in self.components.items():
             if not sat:
@@ -945,13 +946,19 @@ class Trace():
             print(self.pretty_print_triples(triples))
 
     def get_prompt_string(self):
-        s = "Focus:\n"
-        s += ", ".join(self.focus_ls)
-        s += "\nRDF data graph:\n"
+        ret = "Focus: "
+        for foc in self.focus_ls:
+            ret += f"<{foc}> "
+        ret += "\nRDF data graph:"
         for f, connections in self.focus_neighbors.items():
-            triples = self.focus_neighbors[f]
-            s += self.pretty_print_triples(triples)
-        return s
+            triples:set = self.focus_neighbors[f]
+            graph = Graph()
+            for s, p, o in triples:
+                graph.add((s, p, o)) 
+            #s += self.pretty_print_triples(triples)
+            filtered_output = "\n".join(line for line in str(graph.serialize()).splitlines() if not line.startswith("@prefix"))
+            ret += filtered_output.replace("\n\n", "\n") 
+        return ret
 
 class ConstraintComponent():
     def __init__(self, component, sat:bool):
