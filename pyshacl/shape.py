@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Type, Union
 from rdflib import BNode, Literal, URIRef, Graph
 import inspect
 from rdflib.namespace import RDF
+from collections import deque
 from .consts import SH
 from .consts import (
     RDF_type,
@@ -703,7 +704,7 @@ class Shape(object):
                     add_to_cbd(o)
         add_to_cbd(self.node)
         ret_str = self.rm_prefixes(cbd_graph)
-        return ret_str 
+        return ret_str, cbd_graph 
     def get_shacl_syntax_old(self):
         ns_mgr = get_building_motif().template_ns_mgr
         g = self.sg.graph
@@ -872,29 +873,86 @@ class Trace():
     def set_components(self, components):
         self.components = components
 
-    def get_focus_neighbors(self, graph:GraphLike):
+    def get_focus_neighbors(self, graph:GraphLike, value_types:set, exclude_value_type:bool):
         assert self.focus_neighbors == {}, f"focus_neighbors {self.focus_neighbors}"
         for f in self.focus_ls:
-            self._get_neighbors(graph, f)
+            self._get_neighbors(graph, f, value_types, exclude_value_type)
 
-    def _get_neighbors(self, graph: GraphLike, f: URIRef):
+    def _get_neighbors(self, graph: GraphLike, f: URIRef, value_types:set, exclude_value_type:bool):
         visited = set()
         all_triples = set()
-
+        leaf_nodes = UniqueQueue()
+        nodes_of_value_type = set()
+        def is_leaf_node(node, g:Graph) -> bool:
+            is_leaf = True if len(list(g.predicate_objects(subject=node))) else False
+            for p, o in g.predicate_objects(subject=node):
+                if isinstance(o, (URIRef, BNode)):
+                    if len(list(g.predicate_objects(subject=o))) > 0:
+                        is_leaf = False
+                        break
+            return is_leaf
+        def can_prune(node, g:Graph) -> bool:
+            def is_untyped(n):
+                for p, o in g.predicate_objects(subject=n):
+                    if p == RDF_type: return False
+                return True
+            if node in nodes_of_value_type: return False
+            elif is_untyped(node): return False
+            else: return True
+        def prune(all_triples):
+            pruned_graph = Graph()
+            for t in all_triples:
+                pruned_graph.add(t)
+            while len(leaf_nodes) > 0:
+                leaf_node = leaf_nodes.dequeue()
+                if can_prune(leaf_node, pruned_graph):
+                    pruned_graph.remove((leaf_node, None, None))
+                    parents = set()
+                    for s, p in graph.subject_predicates(leaf_node):
+                        parents.add(s)
+                    pruned_graph.remove((None, None, leaf_node))
+                    for parent in parents:
+                        if is_leaf_node(parent, pruned_graph):
+                            leaf_nodes.enqueue(parent)
+            ret = set(pruned_graph.triples((None, None, None)))
+            return ret
         def recurse(node):
-            if node in visited:
-                return
+            if node in visited: return
             visited.add(node)
-            
+            if is_leaf_node(node, graph): leaf_nodes.enqueue(node)
             # Find all triples where node is the subject
             for p, o in graph.predicate_objects(subject=node):
                 triple = (node, p, o)
+                if str(o) in value_types:
+                    nodes_of_value_type.add(node)
                 if triple not in all_triples:
                     all_triples.add(triple)
                     if isinstance(o, (URIRef, BNode)):
                         recurse(o)
 
         recurse(f)
+    #############
+#        print("triples")
+#        print(all_triples)
+#        print("leaf nodes")
+#        print(leaf_nodes)
+#        print("nodes of value type")
+#        print(nodes_of_value_type)
+#        tmp_graph = Graph()
+#        for s, p, o in all_triples:
+#            tmp_graph.add((s, p, o))
+#        print("before pruning")
+#        print(tmp_graph.serialize())
+#        tmp_graph2 = Graph()
+#        new_triples = prune(all_triples)
+#        for s, p, o in new_triples:
+#            tmp_graph2.add((s, p, o))
+#        print("after pruning")
+#        print(tmp_graph2.serialize())
+#        exit(-1)
+    ############
+        if exclude_value_type:
+            all_triples = prune(all_triples)
         self.focus_neighbors[f] = all_triples 
 
     def pretty_print_triples(self, triples):
@@ -945,11 +1003,12 @@ class Trace():
             triples = self.focus_neighbors[f]
             print(self.pretty_print_triples(triples))
 
-    def get_prompt_string(self):
+    def get_prompt_string(self, data_graph:Graph, value_types:set, exclude_value_type:bool):
         ret = "Focus: "
         for foc in self.focus_ls:
             ret += f"<{foc}> "
         ret += "\nRDF data graph:"
+        self.get_focus_neighbors(data_graph, value_types, exclude_value_type)
         for f, connections in self.focus_neighbors.items():
             triples:set = self.focus_neighbors[f]
             graph = Graph()
@@ -964,3 +1023,29 @@ class ConstraintComponent():
     def __init__(self, component, sat:bool):
         self.component = component
         self.isSAT = sat
+
+class UniqueQueue:
+    def __init__(self):
+        self.queue = deque()
+        self.set = set()
+
+    def enqueue(self, item):
+        if item not in self.set:
+            self.queue.append(item)
+            self.set.add(item)
+
+    def dequeue(self):
+        if self.queue:
+            item = self.queue.popleft()
+            self.set.remove(item)
+            return item
+        raise IndexError("dequeue from an empty queue")
+
+    def __len__(self):
+        return len(self.queue)
+
+    def __contains__(self, item):
+        return item in self.set
+
+    def __repr__(self):
+        return f"UniqueQueue({list(self.queue)})"
