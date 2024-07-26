@@ -37,12 +37,12 @@ class ShapeContainer:
         print(self.children)
         for trace in self._traces:
             trace.print()
-    def get_focus_neighbors(self, graph:Graph):
-        for trace in self._traces:
-            trace.get_focus_neighbors(graph)
     
     def collect_value_types(self, shape_str:str, value_types:set):
-        shape:Shape = self._shape.get_other_shape(URIRef(shape_str))
+        if self._shape.get_other_shape(URIRef(shape_str)):
+            shape = self._shape.get_other_shape(URIRef(shape_str))
+        else:
+            shape = self._shape.get_other_shape(BNode(shape_str))
         _, cbd_graph = shape.get_shacl_syntax(TraceMgr()._prune_shape)
         def add_class_and_superclasses(cls):
             o_class_and_superclasses = list(TraceMgr()._target_graph.transitive_objects(cls, RDFS["subClassOf"]))
@@ -96,9 +96,6 @@ class TraceMgr:
         cls._target_graph = target_graph
     def set_data_graph(cls, data_graph:Graph):
         cls._data_graph = data_graph
-    def get_focus_neighbors(cls, graph:Graph):
-        for shape_name, sc in cls._shapes.items():
-            sc.get_focus_neighbors(graph)
     def get_shape(cls, shape_uri_name:str):
         assert shape_uri_name in cls._shapes, f"Shape {shape_uri_name} not found"
         return cls._shapes[shape_uri_name]

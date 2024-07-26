@@ -867,7 +867,6 @@ class Trace():
     def __init__(self, focus):
         self.focus_ls = focus
         self.components = {}
-        self.focus_neighbors:dict[URIRef:set] = {}
     def min_cardinality_constraint_is_violated(self):
         for c, sat in self.components.items():
             if not sat:
@@ -898,12 +897,14 @@ class Trace():
     def set_components(self, components):
         self.components = components
 
-    def get_focus_neighbors(self, graph:GraphLike, value_types:set, exclude_value_type:bool):
-        assert self.focus_neighbors == {}, f"focus_neighbors {self.focus_neighbors}"
+    def get_focus_neighbors(self, graph:GraphLike, value_types:set, exclude_value_type:bool) -> dict[URIRef:set]:
+        focus_neighbors = {}
         for f in self.focus_ls:
-            self._get_neighbors(graph, f, value_types, exclude_value_type)
+            neighbors = self._get_neighbors(graph, f, value_types, exclude_value_type)
+            focus_neighbors[f] = neighbors
+        return focus_neighbors 
 
-    def _get_neighbors(self, graph: GraphLike, f: URIRef, value_types:set, exclude_value_type:bool):
+    def _get_neighbors(self, graph: GraphLike, f: URIRef, value_types:set, exclude_value_type:bool) -> set:
         visited = set()
         all_triples = set()
         leaf_nodes = UniqueQueue()
@@ -917,6 +918,7 @@ class Trace():
                         break
             return is_leaf
         def can_prune(node, g:Graph) -> bool:
+            if node == f: return False
             def is_untyped(n):
                 for p, o in g.predicate_objects(subject=n):
                     if p == RDF_type: return False
@@ -956,29 +958,9 @@ class Trace():
                         recurse(o)
 
         recurse(f)
-    #############
-#        print("triples")
-#        print(all_triples)
-#        print("leaf nodes")
-#        print(leaf_nodes)
-#        print("nodes of value type")
-#        print(nodes_of_value_type)
-#        tmp_graph = Graph()
-#        for s, p, o in all_triples:
-#            tmp_graph.add((s, p, o))
-#        print("before pruning")
-#        print(tmp_graph.serialize())
-#        tmp_graph2 = Graph()
-#        new_triples = prune(all_triples)
-#        for s, p, o in new_triples:
-#            tmp_graph2.add((s, p, o))
-#        print("after pruning")
-#        print(tmp_graph2.serialize())
-#        exit(-1)
-    ############
         if exclude_value_type:
             all_triples = prune(all_triples)
-        self.focus_neighbors[f] = all_triples 
+        return all_triples 
 
     def pretty_print_triples(self, triples):
         def format_node(node):
@@ -1024,15 +1006,11 @@ class Trace():
         print(f"Is SAT: {self.isSAT}")
         for c, sat in self.components.items():
             print(f"\t{c} is {sat}")
-        for f, connections in self.focus_neighbors.items():
-            triples = self.focus_neighbors[f]
-            print(self.pretty_print_triples(triples))
 
     def get_prompt_string(self, data_graph:Graph, value_types:set, exclude_value_type:bool):
         ret = "RDF data graph:"
-        self.get_focus_neighbors(data_graph, value_types, exclude_value_type)
-        for f, connections in self.focus_neighbors.items():
-            triples:set = self.focus_neighbors[f]
+        focus_neighbors = self.get_focus_neighbors(data_graph, value_types, exclude_value_type)
+        for f, triples in focus_neighbors.items():
             graph = Graph()
             for s, p, o in triples:
                 graph.add((s, p, o)) 
