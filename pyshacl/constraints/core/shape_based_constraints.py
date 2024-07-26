@@ -296,6 +296,7 @@ class QualifiedValueShapeConstraintComponent(ConstraintComponent):
         self.max_count = max_count
         self.is_disjoint = is_disjoint
         self.minCount_violated = False
+        self.maxCount_violated = False
     @classmethod
     def constraint_parameters(cls):
         return [SH_qualifiedValueShape, SH_qualifiedMinCount, SH_qualifiedValueShapesDisjoint, SH_qualifiedMaxCount]
@@ -388,6 +389,7 @@ class QualifiedValueShapeConstraintComponent(ConstraintComponent):
                     except ValidationFailure as v:
                         raise v
                 if self.max_count is not None and number_conforms > self.max_count:
+                    self.maxCount_violated = True
                     _non_conformant = True
                     _r = self.make_v_result(
                         target_graph, f, constraint_component=SH_QualifiedMaxCountConstraintComponent

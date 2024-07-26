@@ -584,8 +584,8 @@ class Shape(object):
             if non_conformant and abort_on_first:
                 break
             if mydebug:
-                self.record_trace(focus, c, non_conformant)
-#                print(f"\t\tFocus:{focus}", c, "Passes" if not non_conformant else "Fails")
+                self.record_trace(focus, c, _is_conform)
+#                print(f"\t\tFocus:{focus}", c, "Passes" if _is_conform else "Fails")
         applicable_custom_constraints = self.find_custom_constraints()
         for a in applicable_custom_constraints:
             if non_conformant and abort_on_first:
@@ -598,15 +598,15 @@ class Shape(object):
             reports.extend(_r)
             run_count += 1
             if mydebug:
-                self.record_trace(focus, c, non_conformant)
+                self.record_trace(focus, c, _is_conform)
 #        if mydebug:
 #            print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
         return (not non_conformant), reports
 
-    def record_trace(self, focus, c, non_conformant):
+    def record_trace(self, focus, c, is_conformant):
         focus_signature = self.get_focus_signature(focus)
         assert focus_signature in self._traces 
-        self._traces[focus_signature].add_component(c, not non_conformant)
+        self._traces[focus_signature].add_component(c, is_conformant)
 #        print(f"\t\tFocus:{focus}", c, "Passes" if not non_conformant else "Fails")
 
     def find_closest_non_blank_parent(self) -> URIRef:
@@ -699,6 +699,15 @@ class Shape(object):
                     if p == SH_property and not (o is None):
                         if self.do_not_include(cardinality_is_1, o):
                             continue
+                if exclude_SAT and (p == SH.qualifiedMaxCount or p == SH.maxCount):
+                    max_is_violated = False
+                    for t in self.get_other_shape(node)._traces.values():
+                        if t.max_cardinality_constraint_is_violated():
+                            max_is_violated = True
+                            break
+                    if not max_is_violated:
+                        continue
+                #(node, p, o) is only added if the above conditions are not met
                 cbd_graph.add((node, p, o))
                 if type(o) == BNode: 
                     add_to_cbd(o)
@@ -834,9 +843,16 @@ class Shape(object):
         focuses = {}
         for t in self._traces.values():
             assert len(t.focus_ls) == 1
-            focus = list(t.focus_ls)[0]
-            focuses[focus] = 0
-
+            disqualified = False
+            for c, sat in t.components.items():
+                if c.constraint_name() != "PropertyConstraintComponent" and not sat:
+                    disqualified = True
+                    break
+            if not disqualified:
+                focus = list(t.focus_ls)[0]
+                focuses[focus] = 0
+        if len(focuses) == 0:
+            return None
         for p, o in self.sg.graph.predicate_objects(self.node):
             if p == SH_property:
                 shape = self.get_other_shape(o)
@@ -859,6 +875,15 @@ class Trace():
                     if c.minCount_violated:
                         return True
                 elif "MinCount" in str(type(c)):
+                    return True
+        return False
+    def max_cardinality_constraint_is_violated(self):
+        for c, sat in self.components.items():
+            if not sat:
+                if "QualifiedValueShape" in str(type(c)):
+                    if c.maxCount_violated:
+                        return True
+                if "MaxCount" in str(type(c)):
                     return True
         return False
     @property
