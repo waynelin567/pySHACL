@@ -1029,10 +1029,7 @@ class Trace():
             print(self.pretty_print_triples(triples))
 
     def get_prompt_string(self, data_graph:Graph, value_types:set, exclude_value_type:bool):
-        ret = "Focus: "
-        for foc in self.focus_ls:
-            ret += f"<{foc}> "
-        ret += "\nRDF data graph:"
+        ret = "RDF data graph:"
         self.get_focus_neighbors(data_graph, value_types, exclude_value_type)
         for f, connections in self.focus_neighbors.items():
             triples:set = self.focus_neighbors[f]

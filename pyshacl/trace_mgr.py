@@ -62,9 +62,12 @@ class ShapeContainer:
         value_types = set()
         for shape_str in nested_shapes:
             self.collect_value_types(shape_str, value_types)
-        s = f"{self.shacl_syntax}\n"
-        for trace in self._traces:
-            s += trace.get_prompt_string(TraceMgr()._data_graph, value_types, TraceMgr()._prune_data)
+        assert len(self._traces) == 1, "Only one trace is supported"
+        s = "Focus Node: "
+        for foc in self._traces[0].focus_ls:
+            s += f"<{foc}> "
+        s += f"\n{self.shacl_syntax}\n"
+        s += self._traces[0].get_prompt_string(TraceMgr()._data_graph, value_types, TraceMgr()._prune_data)
         return s 
 
 
