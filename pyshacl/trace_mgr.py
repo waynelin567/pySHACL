@@ -1,6 +1,6 @@
 from .shape import Trace, Shape
 from rdflib import Graph, URIRef
-from .consts import SH, SH_datatype, SH_nodeKind
+from .consts import SH, RDFS 
 from rdflib import BNode, RDF
 class ShapeContainer:
     def __init__(self, shape:Shape):
@@ -44,19 +44,22 @@ class ShapeContainer:
     def collect_value_types(self, shape_str:str, value_types:set):
         shape:Shape = self._shape.get_other_shape(URIRef(shape_str))
         _, cbd_graph = shape.get_shacl_syntax(TraceMgr()._prune_shape)
+        def add_class_and_superclasses(cls):
+            o_class_and_superclasses = list(TraceMgr()._target_graph.transitive_objects(cls, RDFS["subClassOf"]))
+            for cls in o_class_and_superclasses:
+                value_types.add(str(cls))
         def traverse_bnode(bnode):
             for s, p, o in cbd_graph.triples((bnode, None, None)):
                 if isinstance(o, BNode):
                     traverse_bnode(o)
                 elif o!= RDF.nil:
-                    value_types.add(str(o))    
+                    add_class_and_superclasses(o)
         for s, p, o in cbd_graph.triples((None, None, None)):
             if p == SH["class"]:
                 if type(o) == BNode: 
                     traverse_bnode(o)
                 else:
-                    value_types.add(str(o))
-        ### TODO: Add the superclasses of elements in value_types
+                    add_class_and_superclasses(o)
 
     def get_prompt_string(self, nested_shapes):
         value_types = set()
@@ -77,6 +80,7 @@ class TraceMgr:
     _prune_shape: bool = False
     _prune_data: bool = False
     _data_graph:Graph = None
+    _target_graph:Graph = None
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(TraceMgr, cls).__new__(cls)
@@ -88,6 +92,8 @@ class TraceMgr:
             print("="*25,f"Shape: {shape_name}", "="*25)
             sc.print()
             print("="*100)
+    def set_target_graph(cls, target_graph:Graph):
+        cls._target_graph = target_graph
     def set_data_graph(cls, data_graph:Graph):
         cls._data_graph = data_graph
     def get_focus_neighbors(cls, graph:Graph):

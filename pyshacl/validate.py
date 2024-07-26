@@ -229,6 +229,7 @@ class Validator(object):
 #                continue
             sc = ShapeContainer(shape)
             TraceMgr().add_shape_container(sc.shape_uri_name, sc)
+        TraceMgr().set_target_graph(self.target_graph)
         TraceMgr().set_data_graph(self.data_graph)
     def run(self):
         if self.target_graph is not None:
