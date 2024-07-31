@@ -10,7 +10,7 @@ from rdflib import BNode, Literal, URIRef, Graph
 import inspect
 from rdflib.namespace import RDF
 from collections import deque
-from .consts import SH
+from .consts import SH, RDFS
 from .consts import (
     RDF_type,
     RDFS_Class,
@@ -492,13 +492,13 @@ class Shape(object):
                 self._traces[focus_signature] = Trace(focus)
 
             if isinstance(self.node, BNode):
-#                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
+                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
                 subj, depth = self.find_closest_non_blank_parent()
                 self._my_name = f"{str(self)} closest non blank parent {subj} is {depth} levels up" 
-#                print(f"closest non blank parent {subj} is {depth} levels up")
+                print(f"closest non blank parent {subj} is {depth} levels up")
             else:
                 self._my_name = str(self)
-#                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
+                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
         if _evaluation_path is None:
             _evaluation_path = []
         elif len(_evaluation_path) >= 30:
@@ -585,7 +585,7 @@ class Shape(object):
                 break
             if mydebug:
                 self.record_trace(focus, c, _is_conform)
-#                print(f"\t\tFocus:{focus}", c, "Passes" if _is_conform else "Fails")
+                print(f"\t\tFocus:{focus}", "constraintComponent", c, "Passes" if _is_conform else "Fails")
         applicable_custom_constraints = self.find_custom_constraints()
         for a in applicable_custom_constraints:
             if non_conformant and abort_on_first:
@@ -599,8 +599,8 @@ class Shape(object):
             run_count += 1
             if mydebug:
                 self.record_trace(focus, c, _is_conform)
-#        if mydebug:
-#            print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
+        if mydebug:
+            print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
         return (not non_conformant), reports
 
     def record_trace(self, focus, c, is_conformant):
@@ -691,21 +691,27 @@ class Shape(object):
             property_shapes = [(p, o) for p, o in g.predicate_objects(self.node) if p == SH_property and not (o is None)]
             if len(property_shapes) >= 2:
                 cardinality_is_1 = self.min_cardinality_constraint_is_1()
+        def redundant_triple(node, p, o) -> bool:
+            if p == RDF_type and o != SH.NodeShape:
+                return True
+            if p == RDFS.Label:
+                return True
+            return False
         def add_to_cbd(node):
             for p, o in g.predicate_objects(node):
-                if p == RDF_type and o != SH.NodeShape:
+                if redundant_triple(node, p, o):
                     continue
                 if exclude_SAT and not self.is_property_shape:
                     if p == SH_property and not (o is None):
                         if self.do_not_include(cardinality_is_1, o):
                             continue
                 if exclude_SAT and (p == SH.qualifiedMaxCount or p == SH.maxCount):
-                    max_is_violated = False
+                    min_is_satisfied = False
                     for t in self.get_other_shape(node)._traces.values():
-                        if t.max_cardinality_constraint_is_violated():
-                            max_is_violated = True
+                        if not t.min_cardinality_constraint_is_violated():
+                            min_is_satisfied = True
                             break
-                    if not max_is_violated:
+                    if not min_is_satisfied:
                         continue
                 #(node, p, o) is only added if the above conditions are not met
                 cbd_graph.add((node, p, o))
