@@ -58,8 +58,8 @@ for h in log.handlers:
 log.addHandler(log_handler)
 log.setLevel(logging.INFO)
 log_handler.setLevel(logging.INFO)
-
-
+from rdflib.serializer import Serializer
+rdflib.plugin.register("turtleDT", Serializer, "pyshacl.turtle", "TurtleSerializerWithDT")
 class Validator(object):
     @classmethod
     def _load_default_options(cls, options_dict: dict):

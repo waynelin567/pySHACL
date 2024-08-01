@@ -1025,7 +1025,7 @@ class Trace():
             for s, p, o in triples:
                 graph.add((s, p, o)) 
             #s += self.pretty_print_triples(triples)
-            filtered_output = "\n".join(line for line in str(graph.serialize()).splitlines() if not line.startswith("@prefix"))
+            filtered_output = "\n".join(line for line in str(graph.serialize(format="turtleDT")).splitlines() if not line.startswith("@prefix"))
             ret += filtered_output.replace("\n\n", "\n") 
         return ret
 

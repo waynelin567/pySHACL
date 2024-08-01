@@ -11,8 +11,6 @@ from rdflib.namespace import RDF, RDFS
 from rdflib.serializer import Serializer
 from rdflib.term import BNode, Literal, URIRef
 
-__all__ = ["RecursiveSerializer", "TurtleSerializer"]
-
 
 def _object_comparator(a, b):
     """
@@ -173,17 +171,17 @@ SUBJECT = 0
 VERB = 1
 OBJECT = 2
 
-_GEN_QNAME_FOR_DT = False
+_GEN_QNAME_FOR_DT = True 
 _SPACIOUS_OUTPUT = False
 
 
-class TurtleSerializer(RecursiveSerializer):
+class TurtleSerializerWithDT(RecursiveSerializer):
     short_name = "turtle"
     indentString = "    "
 
     def __init__(self, store):
         self._ns_rewrite = {}
-        super(TurtleSerializer, self).__init__(store)
+        super(TurtleSerializerWithDT, self).__init__(store)
         self.keywords = {RDF.type: "a"}
         self.reset()
         self.stream = None
@@ -210,11 +208,11 @@ class TurtleSerializer(RecursiveSerializer):
 
             prefix = self._ns_rewrite.get(prefix, prefix)
 
-        super(TurtleSerializer, self).addNamespace(prefix, namespace)
+        super(TurtleSerializerWithDT, self).addNamespace(prefix, namespace)
         return prefix
 
     def reset(self):
-        super(TurtleSerializer, self).reset()
+        super(TurtleSerializerWithDT, self).reset()
         self._shortNames = {}
         self._started = False
         self._ns_rewrite = {}
@@ -251,7 +249,7 @@ class TurtleSerializer(RecursiveSerializer):
         self.base = None
 
     def preprocessTriple(self, triple):
-        super(TurtleSerializer, self).preprocessTriple(triple)
+        super(TurtleSerializerWithDT, self).preprocessTriple(triple)
         for i, node in enumerate(triple):
             if i == VERB and node in self.keywords:
                 # predicate is a keyword
@@ -349,7 +347,7 @@ class TurtleSerializer(RecursiveSerializer):
             return self.keywords[node]
         if isinstance(node, Literal):
             return node._literal_n3(
-                use_plain=True,
+                use_plain=False,
                 qname_callback=lambda dt: self.getQName(dt, _GEN_QNAME_FOR_DT),
             )
         else:
