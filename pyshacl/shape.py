@@ -492,13 +492,13 @@ class Shape(object):
                 self._traces[focus_signature] = Trace(focus)
 
             if isinstance(self.node, BNode):
-                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
+#                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
                 subj, depth = self.find_closest_non_blank_parent()
                 self._my_name = f"{str(self)} closest non blank parent {subj} is {depth} levels up" 
-                print(f"closest non blank parent {subj} is {depth} levels up")
+#                print(f"closest non blank parent {subj} is {depth} levels up")
             else:
                 self._my_name = str(self)
-                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
+#                print(f"=========================Running evaluation of Shape {str(self)} on focus: {focus}=================================")
         if _evaluation_path is None:
             _evaluation_path = []
         elif len(_evaluation_path) >= 30:
@@ -585,7 +585,7 @@ class Shape(object):
                 break
             if mydebug:
                 self.record_trace(focus, c, _is_conform)
-                print(f"\t\tFocus:{focus}", "constraintComponent", c, "Passes" if _is_conform else "Fails")
+#                print(f"\t\tFocus:{focus}", "constraintComponent", c, "Passes" if _is_conform else "Fails")
         applicable_custom_constraints = self.find_custom_constraints()
         for a in applicable_custom_constraints:
             if non_conformant and abort_on_first:
@@ -599,8 +599,8 @@ class Shape(object):
             run_count += 1
             if mydebug:
                 self.record_trace(focus, c, _is_conform)
-        if mydebug:
-            print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
+#        if mydebug:
+#            print(_evaluation_path[-1], "Passes" if not non_conformant else "Fails")
         return (not non_conformant), reports
 
     def record_trace(self, focus, c, is_conformant):
@@ -1014,7 +1014,11 @@ class Trace():
             print(f"\t{c} is {sat}")
 
     def get_prompt_string(self, data_graph:Graph, value_types:set, exclude_value_type:bool):
-        ret = "RDF data graph:"
+        ret = "Reason:\n"
+        for c, sat in self.components.items():
+            c_str = str(c).strip("<>").split(" on ")[0].strip()
+            ret += f"\t{c_str} is violated\n"
+        ret += "RDF data graph:"
         focus_neighbors = self.get_focus_neighbors(data_graph, value_types, exclude_value_type)
         for f, triples in focus_neighbors.items():
             graph = Graph()
