@@ -694,7 +694,7 @@ class Shape(object):
         def redundant_triple(node, p, o) -> bool:
             if p == RDF_type and o != SH.NodeShape:
                 return True
-            if p == RDFS.Label:
+            if p == RDFS.label:
                 return True
             return False
         def add_to_cbd(node):
@@ -903,14 +903,14 @@ class Trace():
     def set_components(self, components):
         self.components = components
 
-    def get_focus_neighbors(self, graph:GraphLike, value_types:set, exclude_value_type:bool) -> dict[URIRef:set]:
+    def get_focus_neighbors(self, graph:GraphLike, target_graph, value_types:set, exclude_value_type:bool) -> dict[URIRef:set]:
         focus_neighbors = {}
         for f in self.focus_ls:
-            neighbors = self._get_neighbors(graph, f, value_types, exclude_value_type)
+            neighbors = self._get_neighbors(graph, target_graph, f, value_types, exclude_value_type)
             focus_neighbors[f] = neighbors
         return focus_neighbors 
 
-    def _get_neighbors(self, graph: GraphLike, f: URIRef, value_types:set, exclude_value_type:bool) -> set:
+    def _get_neighbors(self, graph: GraphLike, target_graph:Graph, f: URIRef, value_types:set, exclude_value_type:bool) -> set:
         visited = set()
         all_triples = set()
         leaf_nodes = UniqueQueue()
@@ -956,6 +956,8 @@ class Trace():
             # Find all triples where node is the subject
             for p, o in graph.predicate_objects(subject=node):
                 triple = (node, p, o)
+                if p == RDF_type and not (str(o) in target_graph.namespace_manager):
+                    continue
                 if str(o) in value_types:
                     nodes_of_value_type.add(node)
                 if triple not in all_triples:
@@ -1013,13 +1015,14 @@ class Trace():
         for c, sat in self.components.items():
             print(f"\t{c} is {sat}")
 
-    def get_prompt_string(self, data_graph:Graph, value_types:set, exclude_value_type:bool):
+    def get_prompt_string(self, data_graph:Graph, target_graph, value_types:set, exclude_value_type:bool):
         ret = "Reason:\n"
         for c, sat in self.components.items():
-            c_str = str(c).strip("<>").split(" on ")[0].strip()
-            ret += f"\t{c_str} is violated\n"
+            if not sat:
+                c_str = str(c).strip("<>").split(" on ")[0].strip()
+                ret += f"\t{c_str} is violated\n"
         ret += "RDF data graph:"
-        focus_neighbors = self.get_focus_neighbors(data_graph, value_types, exclude_value_type)
+        focus_neighbors = self.get_focus_neighbors(data_graph, target_graph, value_types, exclude_value_type)
         for f, triples in focus_neighbors.items():
             graph = Graph()
             for s, p, o in triples:
