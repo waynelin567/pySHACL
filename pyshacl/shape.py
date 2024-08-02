@@ -851,7 +851,7 @@ class Shape(object):
             assert len(t.focus_ls) == 1
             disqualified = False
             for c, sat in t.components.items():
-                if c.constraint_name() != "PropertyConstraintComponent" and not sat:
+                if c.constraint_name() == "ClassConstraintComponent" and not sat:
                     disqualified = True
                     break
             if not disqualified:
