@@ -1,3 +1,6 @@
+see commit b05c5f3 to configure reorder options
+
+
 ![](pySHACL-250.png)
 
 # pySHACL
