@@ -1014,14 +1014,15 @@ class Trace():
         print(f"Is SAT: {self.isSAT}")
         for c, sat in self.components.items():
             print(f"\t{c} is {sat}")
-
-    def get_prompt_string(self, data_graph:Graph, target_graph, value_types:set, exclude_value_type:bool):
+    def get_prompt_reason(self):
         ret = "Reason:\n"
         for c, sat in self.components.items():
             if not sat:
                 c_str = str(c).strip("<>").split(" on ")[0].strip()
                 ret += f"\t{c_str} is violated\n"
-        ret += "RDF data graph:"
+        return ret
+    def get_prompt_string(self, data_graph:Graph, target_graph, value_types:set, exclude_value_type:bool):
+        ret = "RDF data graph:"
         focus_neighbors = self.get_focus_neighbors(data_graph, target_graph, value_types, exclude_value_type)
         for f, triples in focus_neighbors.items():
             graph = Graph()

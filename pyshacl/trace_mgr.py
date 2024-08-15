@@ -71,6 +71,10 @@ class ShapeContainer:
             s += f"<{foc}> "
         s += "\nViolated source SHACL shape:"
         s += f"\n{self.shacl_syntax}\n"
+        s += self._traces[0].get_prompt_reason()
+        reorder = False
+        if reorder:
+            s += "WAYNE COMMENT: REPLACE THIS"
         s += self._traces[0].get_prompt_string(TraceMgr()._data_graph, TraceMgr()._target_graph, value_types, TraceMgr()._prune_data)
         return s 
 
